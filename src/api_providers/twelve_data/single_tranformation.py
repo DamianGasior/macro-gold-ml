@@ -5,6 +5,8 @@ class Data_transformation:
     def __init__(self, api_response, symbol):
         self.api_response = api_response
         self.symbol = symbol
+        
+
 
     def to_dataframe(self):
         dataframe = pd.DataFrame(self.api_response)
@@ -16,6 +18,9 @@ class Data_transformation:
         print(dataframe)
 
         return dataframe
+
+
+   
 
 
 # zaimportuj odpowiedz
