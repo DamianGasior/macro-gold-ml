@@ -2,9 +2,10 @@ import pandas as pd
 
 
 class Data_transformation:
-    def __init__(self, api_response, symbol):
+    def __init__(self, api_response, symbol,dataframe: pd.DataFrame | None = None ):
         self.api_response = api_response
         self.symbol = symbol
+        self.dataframe=dataframe
         
 
 
@@ -16,8 +17,13 @@ class Data_transformation:
         dataframe=dataframe.filter(["close"]) #filtering by one column only
         dataframe.rename(columns={"close": symbol}, inplace=True)
         print(dataframe)
-
-        return dataframe
+        print(type(dataframe))
+        self.dataframe=dataframe
+        print(type(self.dataframe))
+        return self.dataframe
+    
+    def return_dataframe(self):
+        return self.dataframe
 
 
    

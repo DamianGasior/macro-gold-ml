@@ -6,8 +6,11 @@ from src.api_providers.twelve_data.api_request_twelve_data import (
     Underlying_twelve_data_reuquest,
 )
 from src.api_providers.twelve_data.single_tranformation import Data_transformation
+from src.api_providers.common_df_merger.multiple_dataframe_transformer import Multiple_df_manager
 
 fx_list = Multiple_df_manager()
+fx_combined_df= Multiple_df_manager()
+
 
 
 symbol_deque = deque(["USD/PLN", "EUR/USD"])
@@ -25,19 +28,23 @@ while len(symbol_deque) > 0:
         fx_pair
     )  # using a method from Underlying_twelve_data_reuquest class,
     # api where the response is passed to Data_transformation class
-    fx_pair_transf.to_dataframe()
-    # print(type(fx_pair_transf))
-
-    # fx_list.len_of_lists()
 
 
-    fx_list.add_to_fx_list(fx_pair_transf)
+    fx_list.add_to_fx_list(fx_pair_transf.to_dataframe())
     fx_list.len_of_lists()
 
 
-print(type(fx_list))
+    print(type(fx_list))
 
-fx_list.len_of_lists()
+
+
+fx_list.list_concacenate('fx')
+
+
+
+print(fx_list.return_df())
+
+# df_merged_fx=Multiple_df_manager.list_concacenate(fx_list)
 
 
 # dodac nowa metoda i nowy plyk, gdzie bede robil merge danych, np, USD, EUR
