@@ -5,6 +5,11 @@ from flask_caching import Cache
 import time
 from .single_tranformation import Data_transformation
 
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
 
 API_KEY = "cd8a73e98be740cca47f97db19df0301"
 
@@ -56,15 +61,15 @@ class Underlying_twelve_data_reuquest:
             resp = api_request_cached(
                 parameters
             )  # object Resposne in the library requests have an featrure called .status_code, which may return :  200, 404, 500
-            print(type(resp))  # <class 'requests.models.Response'>
+            # print(type(resp))  # <class 'requests.models.Response'>
             response = resp.json()
-            print(response)
-            print(type(response))  # <class 'dict'>
+            # print(type(response))  # <class 'dict'>
             # if resp.status_code == 200
             code = response.get("code")
             message = response.get("message")
 
             logging.info(f"Response type is : {resp.status_code}")
+            logging.info(f'Response is : {response}')
 
             if resp.status_code == 200:
                 # for success scenario
@@ -98,12 +103,9 @@ class Underlying_twelve_data_reuquest:
             # when it would implemented like this : st.error("Error occured", e)
 
     def execute_full_request(self):
-        print("request_executed_by_twelve_data")
+        logging.info("request_executed_to_twelve_data")
         response = self.api_request()  # blocking it to check the st.cache_Data
-        # parameters_for_req = self.to_dict_params()
-        # response = api_request(parameters_for_req)
-
-        print(response)
+        # print(response)
         return response
 
     def response_from_api(self, api_reponse):

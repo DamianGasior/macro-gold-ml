@@ -40,14 +40,11 @@ while len(symbol_deque) > 0:
 
 fx_list.list_concacenate('fx')
 
+fx_combined_df=fx_list.return_df().copy()
 
 
-print(fx_list.return_df())
-
-# df_merged_fx=Multiple_df_manager.list_concacenate(fx_list)
+print(fx_combined_df.head())
 
 
-# dodac nowa metoda i nowy plyk, gdzie bede robil merge danych, np, USD, EUR
-# dane musza tam byc normalizowane ( jakie to pojecie ?) do jedn jdaty
 
-# combined_fx_dataframe
+

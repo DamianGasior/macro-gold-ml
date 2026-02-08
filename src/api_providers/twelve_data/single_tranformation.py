@@ -2,10 +2,10 @@ import pandas as pd
 
 
 class Data_transformation:
-    def __init__(self, api_response, symbol,dataframe: pd.DataFrame | None = None ):
+    def __init__(self, api_response, symbol):
         self.api_response = api_response
         self.symbol = symbol
-        self.dataframe=dataframe
+        self.dataframe=pd.DataFrame()
         
 
 
