@@ -5,10 +5,10 @@ import pandas as pd
 
 
 class Multiple_df_manager:
-    def __init__(self, concact_fx_df:pd.DataFrame | None = None):
+    def __init__(self, concact_df:pd.DataFrame | None = None):
         self.fx_list = []
         self.bond_yield_list = []
-        self.concact_fx_df=concact_fx_df
+        self.concact_df=concact_df
 
     def add_to_fx_list(self, passed_fx_df):
         print(type(self.fx_list))
@@ -33,19 +33,29 @@ class Multiple_df_manager:
             print(len(self.fx_list))
             
             conc_df = pd.concat(self.fx_list, axis=1, join="inner")
+            # print(conc_df.dtypes) #shows the types used in dataframe columns
+            # print(conc_df.head()) # prints the first 5-10 rows
+            # print(conc_df["USD/PLN"].apply(type).unique()) #shows the exact type applied in specifc column, works beggern than dtype
+        elif param == 'bond_yield':
+            conc_df = pd.concat(self.bond_yield_list, axis=1, join="inner")
             print(type(conc_df))
-        elif param == 'bond_yeld':
-            conc_df = pd.concat(self.fx_list, axis=1, join="inner")
-        print(type(conc_df))
-        self.concact_fx_df=conc_df
-        return self.concact_fx_df
+        self.concact_df=conc_df
+        return self.concact_df
+    
+    def df_concacenate(self ,*args):
+        df_list=[]
+        for df in args:
+            df_list.append(df)
+        self.concact_df = pd.concat(df_list, axis=1, join='inner')
+        return self.concact_df
+
 
 
     def return_list(self):
         return self.fx_list
     
     def return_df(self):
-        return self.concact_fx_df
+        return self.concact_df
 
 
     
