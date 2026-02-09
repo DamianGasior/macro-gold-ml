@@ -11,11 +11,14 @@ class Data_transformation:
 
     def to_dataframe(self):
         dataframe = pd.DataFrame(self.api_response)
+        print(type(dataframe))
         dataframe["datetime"]= pd.to_datetime(dataframe["datetime"]) #changing the datetime to type date time
         dataframe.set_index("datetime",inplace=True) # setting datetime as index
         symbol = str(self.symbol)
         dataframe=dataframe.filter(["close"]) #filtering by one column only
-        dataframe.rename(columns={"close": symbol}, inplace=True)
+        dataframe.rename(columns={"close": self.symbol}, inplace=True)
+        dataframe=dataframe.apply(pd.to_numeric, errors='coerce')  #transform input data from the df to numeric values, if it can not be transfromed to numeric, then it popualted NaN 
+        dataframe=dataframe.dropna()  #it drops from the row above all NaN rows
         print(dataframe)
         print(type(dataframe))
         self.dataframe=dataframe

@@ -13,6 +13,8 @@ logging.basicConfig(
 
 API_KEY = "cd8a73e98be740cca47f97db19df0301"
 
+#dodac poczatek i koniec daty
+
 
 def api_request_cached(parameters):
     url = "https://api.twelvedata.com/time_series?"
