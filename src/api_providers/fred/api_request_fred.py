@@ -3,6 +3,8 @@ import logging
 from flask import Flask
 from flask_caching import Cache
 import time
+from .single_transformation_fred import Data_fred_transformation
+
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -27,11 +29,11 @@ class Fred_request_api:
         series_id,
         api_key=API_KEY,
         file_type="json",
-        observation_start="2026-01-01",
+        observation_start="2025-01-01",
         observation_end="9999-12-31",
     ):
-        self.series_id = (series_id,)
-        self.api_key = (api_key,)
+        self.series_id = series_id
+        self.api_key = api_key
         self.file_type = file_type
         self.observation_start = observation_start
         self.observation_end = observation_end
@@ -69,28 +71,27 @@ class Fred_request_api:
 
     def execute_full_request(self):
         logging.info("request_executed_to_fred")
-        response = self.api_request()  # blocking it to check the st.cache_Data
-        # print(response)
+        response = self.api_request()  
+        print(type(response))
         return response
 
     def response_from_api(self, api_reponse):
         print(type(api_reponse))
         print(api_reponse)
-        symbol = self.symbol
+        symbol = self.series_id
         api_reponse = self.to_dict()
-        api_reponse = api_reponse["observations"]
-
-        # return Data_transformation(api_reponse, symbol)
+        api_reponse = api_reponse["quotes"]
+        return Data_fred_transformation(api_reponse, symbol)
 
     def to_dict(self):
         # print('druk metody to_dict')
         response = self.api_request()
-        data = response["values"]
-        return {"symbol": self.symbol, "observations": data}
+        data = response["observations"]
+        return {"symbol": self.series_id , "quotes": data}
 
 
-test_request = Fred_request_api("DGS10")
-test_request.api_request()
+# test_request = Fred_request_api("DGS10")
+# test_request.api_request()
 
 # https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=fbdae593317d45162a3c4a3ebc6a74ec&file_type=json
 
