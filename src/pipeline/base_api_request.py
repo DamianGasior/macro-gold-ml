@@ -4,11 +4,13 @@ from abc import ABC, abstractmethod
 
 
 class BaseAPIProvider(ABC):
+    def __init__(self, symbol: str):
+        self.symbol = symbol
     # in the class __init__
     # include parametres required  by the api provider, like symbol, interval, api_key , etc
 
     @abstractmethod
-    def to_dict_params(self):
+    def to_dict_params(self) -> dict[str, str]:
         # an example what will be required in this, helpful to create  pass the details to requets.get(url,params=params)
         # params={"symbol": self.symbol,
         # "interval": self.interval,etc}

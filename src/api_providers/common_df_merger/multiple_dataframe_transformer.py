@@ -6,18 +6,18 @@ import pandas as pd
 
 class Multiple_df_manager:
     def __init__(self, concact_df:pd.DataFrame | None = None):
-        self.fx_list = []
-        self.bond_yield_list = []
-        self.concact_df=concact_df
+        self.df_passed_list = []
+        # self.bond_yield_list = []
+        self.concact_df = concact_df
 
-    def add_to_fx_list(self, passed_fx_df):
-        print(type(self.fx_list))
-        self.fx_list.append(passed_fx_df)
-        return self.fx_list
+    def add_to_working_list(self, passed_df):
+        print(type(passed_df))
+        self.df_passed_list.append(passed_df)
+        return self.df_passed_list
 
-    def add_to_bond_yield_list(self, passed_bond_yield_df):
-        self.bond_yield_list.append(passed_bond_yield_df)
-        return self.bond_yield_list
+    # def add_to_bond_yield_list(self, passed_bond_yield_df):
+    #     self.bond_yield_list.append(passed_bond_yield_df)
+    #     return self.bond_yield_list
 
     def len_of_lists(self):
         print(f"Length of fx_list is {len(self.fx_list)}")
@@ -27,18 +27,13 @@ class Multiple_df_manager:
     # axis 1 = merging by columns
     
 
-    def list_concacenate(self,param):
-        if param == 'fx':
-            # print(type())
-            print(len(self.fx_list))
-            
-            conc_df = pd.concat(self.fx_list, axis=1, join="inner")
-            # print(conc_df.dtypes) #shows the types used in dataframe columns
-            # print(conc_df.head()) # prints the first 5-10 rows
-            # print(conc_df["USD/PLN"].apply(type).unique()) #shows the exact type applied in specifc column, works beggern than dtype
-        elif param == 'bond_yield':
-            conc_df = pd.concat(self.bond_yield_list, axis=1, join="inner")
-            print(type(conc_df))
+    def list_concacenate(self):
+
+        conc_df = pd.concat(self.df_passed_list, axis=1, join="inner")
+        # print(conc_df.dtypes) #shows the types used in dataframe columns
+        # print(conc_df.head()) # prints the first 5-10 rows
+        # print(conc_df["USD/PLN"].apply(type).unique()) #shows the exact type applied in specifc column, works beggern than dtype
+    
         self.concact_df=conc_df
         return self.concact_df
     

@@ -31,13 +31,13 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
         symbol,
         adjust="adjusted",  #  "non-adjusted"],  # this is driven already by the users input
         interval="1day",  #   Supported intervals: 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h, 8h, 1day, 1week, 1month'
-        outputsize=10,
+        outputsize=5000,
         dp=4,
         previous_close=True,
         apikey=API_KEY,
     ):
+        super().__init__(symbol)  #  executing the constructor of base class
         self.apikey = apikey
-        self.symbol = symbol
         self.interval = interval
         self.outputsize = outputsize  # max is 5000
         self.dp = dp
@@ -52,7 +52,7 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
             "dp": self.dp,
             "previous_close": self.previous_close,
             "adjust": self.adjust,
-            "apikey": API_KEY,
+            "apikey": self.apikey,
         }
         return params
 
