@@ -1,8 +1,9 @@
 import pandas as pd
+from ...pipeline.base_single_transformer import BaseDataTransformer
 
 
 
-class Data_stooq_transformation:
+class Data_stooq_transformation(BaseDataTransformer):
     def __init__(self,api_reponse,symbol):
         self.api_reponse=api_reponse
         self.symbol=symbol

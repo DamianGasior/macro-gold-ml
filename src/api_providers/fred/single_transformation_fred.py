@@ -1,8 +1,9 @@
 import pandas as pd
+from ...pipeline.base_single_transformer import BaseDataTransformer
 
 
 
-class Data_fred_transformation:
+class Data_fred_transformation(BaseDataTransformer):
     def __init__(self, api_response, symbol):
         self.api_response = api_response
         self.symbol = symbol

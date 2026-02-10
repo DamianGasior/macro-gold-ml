@@ -4,6 +4,7 @@ from flask import Flask
 from flask_caching import Cache
 import time
 from .single_transformation_fred import Data_fred_transformation
+from ...pipeline.base_api_request import BaseAPIProvider
 
 
 logging.basicConfig(
@@ -23,7 +24,7 @@ def api_request_cached(parameters):
     return resp
 
 
-class Fred_request_api:
+class Fred_request_api(BaseAPIProvider):
     def __init__(
         self,
         series_id,

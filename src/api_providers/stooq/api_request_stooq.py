@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 from .single_transformation_stooq import Data_stooq_transformation
-
+from ...pipeline.base_api_request import BaseAPIProvider
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -9,6 +9,7 @@ logging.basicConfig(
 
 # this is not an  official api from stooq, we are just calling here a specific endpoint which provides us with a csv file in a response. 
 
+# the first date for which data are provided by stooq.pl for this ticker "DGS10" is 25th May 1999
 
 def api_request_cached(symbol,interval):
     url = f"https://stooq.pl/q/d/l/?s={symbol}&i={interval}"
@@ -21,7 +22,7 @@ def api_request_cached(symbol,interval):
     return dataframe
 
 
-class Stooq_request_api:
+class Stooq_request_api(BaseAPIProvider):
     def __init__(self, symbol):
         self.symbol = symbol
         self.i = 'd'
@@ -54,7 +55,6 @@ class Stooq_request_api:
         # api_reponse = api_reponse["quotes"]
         return Data_stooq_transformation(api_reponse, symbol)
     
-
     def to_dict(self):
        pass
 

@@ -4,6 +4,7 @@ from flask import Flask
 from flask_caching import Cache
 import time
 from .single_tranformation import Data_transformation
+from ...pipeline.base_api_request import BaseAPIProvider
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -23,7 +24,7 @@ def api_request_cached(parameters):
     return resp
 
 
-class Underlying_twelve_data_reuquest:
+class Underlying_twelve_data_reuquest(BaseAPIProvider):
 
     def __init__(
         self,
