@@ -104,6 +104,7 @@ class DataPipeline:
 
         regression_datframe=Classification_model()
         regression_datframe.combine_dataframes(dataframe_combined,feature_dataframe)
+        regression_datframe.run_random_forest_classifier()
 
 
 
