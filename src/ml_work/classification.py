@@ -47,15 +47,15 @@ class Classification_model:
         # sift(-1) becasue we want to predict the  quote for tomorrow, not for yesterday
 
         # self._combined_dataframe['target']=(self._combined_dataframe['USD_PLN'].shift(-1)>self._combined_dataframe['USD_PLN']).astype(int) 
-        self._combined_dataframe['target_5']=self._combined_dataframe['USD_PLN'].shift(-5)/self._combined_dataframe['USD_PLN']-1
-        self._combined_dataframe['target_5']=(self._combined_dataframe['target_5']>0).astype(int) 
+        self._combined_dataframe['target_5_return']=self._combined_dataframe['USD_PLN'].shift(-5)/self._combined_dataframe['USD_PLN']-1
+        self._combined_dataframe['target_5']=(self._combined_dataframe['target_5_return']>0).astype(int) 
 
-
+        
       
         print(self._combined_dataframe.head(14))
 
         self._combined_dataframe=self._combined_dataframe.dropna() 
-        self._x=self._combined_dataframe.drop(columns=['target_5','USD_PLN']) # droppoing the selected columns, matrix with features 
+        self._x=self._combined_dataframe.drop(columns=['target_5','USD_PLN','target_5_return']) # droppoing the selected columns, matrix with features 
 
         self._y=self._combined_dataframe['target_5']  # leaving selected columns df with target 
 
@@ -83,19 +83,39 @@ class Classification_model:
         print(f'{confusion_matrix(self._y_test, pred)}')
         print(f'{classification_report(self._y_test, pred)}')
         sample = model.predict_proba(self._X_test)[:, 1]
-        
+        # print(f'sample print: {sample}')
+        print(type(sample))
 
-        print('model.predict_proba - self._X_test',model.predict_proba(self._X_test))
+        # threshhold=np.quantile(sample,0.80)
+        # mask=sample >= threshhold
+
+        threshhold=np.quantile(sample,0.20)
+        mask=sample <= threshhold
+
+        # print('model.predict_proba - self._X_test',model.predict_proba(self._X_test))
         print(f'AUC : {roc_auc_score(self._y_test, sample)}')
         print(f'check :{roc_auc_score(self._y_test, 1 - sample)}')
+
+        accuracy_top20=accuracy_score(self._y_test[mask],(sample[mask] > 0.5).astype(int))
+
+        # print("Liczba obserwacji w top 20%:", mask.sum())
+        # print("Accuracy dla top 20%:", accuracy_top20)
+
+        
+        print("Liczba obserwacji w bottom 20%:", mask.sum())
+        print("Accuracy dla bottom 20%:", accuracy_top20)
+
+       
+        return_test=self._combined_dataframe.loc[self._X_test.index,'target_5_return']
+        mean_return_bottom20=return_test[mask].mean()
+        print("Średni 5-day return dla bottom 20%:", mean_return_bottom20)
 
 
 
         return accuracy_score
-        # length is : 913
-        # confusion matrix       [[TP - 320 ; FP - 166]
- #                                [FN - 283 ;  TN - 144]]
- #       accuracy_score is : 0.5082146768893757 
+
+
+#  https://chatgpt.com/g/g-p-6966ca2b44888191852c15e94adfa88b-pierwszeaiprojekty/c/698b7ff9-87fc-8325-bda8-9ecfae91dc26
 
 
 
