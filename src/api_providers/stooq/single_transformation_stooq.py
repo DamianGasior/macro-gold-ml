@@ -1,8 +1,9 @@
 import pandas as pd
+from ...pipeline.base_single_transformer import BaseDataTransformer
 
 
 
-class Data_stooq_transformation:
+class Data_stooq_transformation(BaseDataTransformer):
     def __init__(self,api_reponse,symbol):
         self.api_reponse=api_reponse
         self.symbol=symbol
@@ -22,7 +23,7 @@ class Data_stooq_transformation:
         dataframe.rename(columns={"Zamkniecie": self.symbol}, inplace=True)
         dataframe=dataframe.apply(pd.to_numeric,errors='coerce')
         dataframe=dataframe.dropna()
-        print(dataframe)
+        # print(dataframe)
         self.dataframe=dataframe
         return self.dataframe
     

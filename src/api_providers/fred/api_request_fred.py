@@ -2,8 +2,12 @@ import requests
 import logging
 from flask import Flask
 from flask_caching import Cache
+from requests_cache import CachedSession
 import time
 from .single_transformation_fred import Data_fred_transformation
+from ...pipeline.base_api_request import BaseAPIProvider
+session = CachedSession('demo_cache', backend='sqlite', expire_after=7200)
+
 
 
 logging.basicConfig(
@@ -18,21 +22,26 @@ API_KEY = "fbdae593317d45162a3c4a3ebc6a74ec"
 
 def api_request_cached(parameters):
     url = "https://api.stlouisfed.org/fred/series/observations?"
-    resp = requests.get(url, params=parameters)
+    resp = session.get(url, params=parameters)
     resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
-    return resp
+    print(resp)
+    return {
+        "from_cache" : getattr(resp, "from_cache", False),
+        "data": resp.json(),
+        "status_code": resp.status_code
+    }
 
 
-class Fred_request_api:
+class Fred_request_api(BaseAPIProvider):
     def __init__(
         self,
-        series_id,
+        symbol,
         api_key=API_KEY,
         file_type="json",
-        observation_start="2025-01-01",
+        observation_start="1999-05-25",
         observation_end="9999-12-31",
     ):
-        self.series_id = series_id
+        super().__init__(symbol)
         self.api_key = api_key
         self.file_type = file_type
         self.observation_start = observation_start
@@ -40,7 +49,7 @@ class Fred_request_api:
 
     def to_dict_params(self):
         return {
-            "series_id": self.series_id,
+            "series_id": self.symbol,
             "api_key": self.api_key,
             "file_type": self.file_type,
             "observation_start": self.observation_start,
@@ -52,13 +61,14 @@ class Fred_request_api:
 
         try:
             resp = api_request_cached(parameters)
-            print(resp)
+            # print(resp)
             # print(type(resp))  # <class 'requests.models.Response'>
-            response = resp.json()
-            # print(response)
+            # print(resp.get("data"))
             # print(type(response))
-            logging.info(f"Response type is : {resp.status_code}")
-            logging.info(f"Response is : {response}")
+            logging.info(f"Response type is : {resp.get("status_code")}")
+            logging.info(f"Response type is from cache: {resp.get("from_cache")}")
+            logging.debug(f"Response is : {resp.get("data")}")
+            response = resp.get("data")
             return response
 
         except requests.RequestException as e:
@@ -72,22 +82,22 @@ class Fred_request_api:
     def execute_full_request(self):
         logging.info("request_executed_to_fred")
         response = self.api_request()  
-        print(type(response))
+        # print(type(response))
         return response
 
     def response_from_api(self, api_reponse):
-        print(type(api_reponse))
-        print(api_reponse)
-        symbol = self.series_id
+        # print(type(api_reponse))
+        # print(api_reponse)
+        series_id = self.symbol
         api_reponse = self.to_dict()
         api_reponse = api_reponse["quotes"]
-        return Data_fred_transformation(api_reponse, symbol)
+        return Data_fred_transformation(api_reponse, series_id)
 
     def to_dict(self):
         # print('druk metody to_dict')
         response = self.api_request()
         data = response["observations"]
-        return {"symbol": self.series_id , "quotes": data}
+        return {"symbol": self.symbol , "quotes": data}
 
 
 # test_request = Fred_request_api("DGS10")
