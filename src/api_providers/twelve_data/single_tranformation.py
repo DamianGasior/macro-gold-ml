@@ -15,6 +15,7 @@ class Data_transformation(BaseDataTransformer):
             dataframe["datetime"]
         )  # changing the datetime to type date time
         dataframe.set_index("datetime", inplace=True)  # setting datetime as index
+        print(dataframe.head(5000))
         dataframe = dataframe.filter(["close"])  # filtering by one column only
         dataframe.rename(columns={"close": self.symbol}, inplace=True)
         dataframe = dataframe.apply(

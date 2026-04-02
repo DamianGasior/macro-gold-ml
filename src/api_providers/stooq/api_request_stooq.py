@@ -1,11 +1,15 @@
 import pandas as pd
+import requests
 import logging
 from .single_transformation_stooq import Data_stooq_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
+from io import StringIO
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+
 
 # this is not an  official api from stooq, we are just calling here a specific endpoint which provides us with a csv file in a response.
 
@@ -13,15 +17,30 @@ logging.basicConfig(
 
 
 def api_request_cached(symbol, interval):
+    session = requests.Session()
+
     url = f"https://stooq.pl/q/d/l/?s={symbol}&i={interval}"
     print(url)
-    # url = f"https://stooq.pl/q/d/l/?{parameters}"
-    # https://stooq.pl/q/d/l/?s=10yply.b&i=d
+    headers =  {  "User-Agent": "Mozilla/5.0",
+    "Accept": "text/csv,application/xhtml+xml",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive"}
+    
+    response = session.get(url, headers=headers)
+    print(response.status_code)
+    print(response.text[:200]) 
 
-    dataframe = pd.read_csv(url).set_index(
-        "Data"
-    )  # set already the 'Data' column as index, so that the 0,1,2 will be avoided.
-    print(dataframe)
+    if not response.text.strip():
+        raise ValueError(f"Empty response from Stooq for symbol: {symbol}")
+
+    dataframe = pd.read_csv(StringIO(response.text)).set_index("Data") # set already the 'Data' column as index, so that the 0,1,2 will be avoided.
+    # print(dataframe)
+
+ # DEBUG
+  
+    if dataframe.empty:
+        raise ValueError(f"Empty dataframe for symbol: {symbol}")
+
     return dataframe
 
 
@@ -51,7 +70,7 @@ class Stooq_request_api(BaseAPIProvider):
 
     def response_from_api(self, api_reponse):
         print(type(api_reponse))
-        print(api_reponse)
+        # print(api_reponse)
         symbol = self.symbol
         # api_reponse = self.to_dict()
         # api_reponse = api_reponse["quotes"]

@@ -2,9 +2,12 @@ import requests
 import logging
 from flask import Flask
 from flask_caching import Cache
+from requests_cache import CachedSession
 import time
 from .single_transformation_fred import Data_fred_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
+session = CachedSession('demo_cache', backend='sqlite', expire_after=7200)
+
 
 
 logging.basicConfig(
@@ -19,9 +22,14 @@ API_KEY = "fbdae593317d45162a3c4a3ebc6a74ec"
 
 def api_request_cached(parameters):
     url = "https://api.stlouisfed.org/fred/series/observations?"
-    resp = requests.get(url, params=parameters)
+    resp = session.get(url, params=parameters)
     resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
-    return resp
+    print(resp)
+    return {
+        "from_cache" : getattr(resp, "from_cache", False),
+        "data": resp.json(),
+        "status_code": resp.status_code
+    }
 
 
 class Fred_request_api(BaseAPIProvider):
@@ -53,13 +61,14 @@ class Fred_request_api(BaseAPIProvider):
 
         try:
             resp = api_request_cached(parameters)
-            print(resp)
+            # print(resp)
             # print(type(resp))  # <class 'requests.models.Response'>
-            response = resp.json()
-            # print(response)
+            # print(resp.get("data"))
             # print(type(response))
-            logging.info(f"Response type is : {resp.status_code}")
-            logging.info(f"Response is : {response}")
+            logging.info(f"Response type is : {resp.get("status_code")}")
+            logging.info(f"Response type is from cache: {resp.get("from_cache")}")
+            logging.debug(f"Response is : {resp.get("data")}")
+            response = resp.get("data")
             return response
 
         except requests.RequestException as e:
@@ -73,12 +82,12 @@ class Fred_request_api(BaseAPIProvider):
     def execute_full_request(self):
         logging.info("request_executed_to_fred")
         response = self.api_request()  
-        print(type(response))
+        # print(type(response))
         return response
 
     def response_from_api(self, api_reponse):
-        print(type(api_reponse))
-        print(api_reponse)
+        # print(type(api_reponse))
+        # print(api_reponse)
         series_id = self.symbol
         api_reponse = self.to_dict()
         api_reponse = api_reponse["quotes"]

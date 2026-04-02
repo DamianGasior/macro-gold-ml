@@ -23,7 +23,7 @@ class Data_stooq_transformation(BaseDataTransformer):
         dataframe.rename(columns={"Zamkniecie": self.symbol}, inplace=True)
         dataframe=dataframe.apply(pd.to_numeric,errors='coerce')
         dataframe=dataframe.dropna()
-        print(dataframe)
+        # print(dataframe)
         self.dataframe=dataframe
         return self.dataframe
     
