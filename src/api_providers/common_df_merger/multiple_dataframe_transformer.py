@@ -1,6 +1,3 @@
-import logging
-import sys
-from src.api_providers.twelve_data.single_tranformation import Data_transformation
 import pandas as pd
 
 
@@ -11,6 +8,7 @@ class Multiple_df_manager:
 
     @property
     def return_df(self):
+        print(type(self.concact_df))
         return self.concact_df
 
     def add_to_working_list(self, passed_df):
@@ -25,7 +23,7 @@ class Multiple_df_manager:
     # join='inner' helps to merge only with the common index, there are no NaN applied in case of mismatch
     # axis 1 = merging by columns
 
-    def list_concacenate(self):
+    def list_concacenate(self):  # this is a conct of df's'
         # for i, df in enumerate(self.df_passed_list): # for debugging purpose
         #     print(i, df.shape)
         #     print(df.index.min(), df.index.max())
@@ -40,7 +38,8 @@ class Multiple_df_manager:
         df_list = []
         for df in args:
             df_list.append(df)
-        self.concact_df = pd.concat(df_list, axis=1, join="inner")
+        
+        self.concact_df = pd.concat(df_list, axis=1, join="inner")  # joining those dataframes which have the same dates
         return self.concact_df
 
     def return_list(self):
@@ -49,3 +48,10 @@ class Multiple_df_manager:
     def multiple_df_manager_pipeline(self, passed_df):
         self.add_to_working_list(passed_df)
         self.list_concacenate()
+
+    @staticmethod
+    def rename_columns_in_df(df: pd.DataFrame, columns_renamed: dict):
+        df.rename(columns=columns_renamed, inplace=True)
+        print(df.head(10))
+        print(df.tail(10))
+        return df

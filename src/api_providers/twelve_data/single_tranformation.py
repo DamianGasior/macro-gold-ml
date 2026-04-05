@@ -22,6 +22,7 @@ class Data_transformation(BaseDataTransformer):
             pd.to_numeric, errors="coerce"
         )  # transform input data from the df to numeric values, if it can not be transfromed to numeric, then it popualted NaN
         dataframe = dataframe.dropna()  # it drops from the row above all NaN rows
+        dataframe = dataframe[~dataframe.index.duplicated(keep="last")] # helps to avoid duplicates
         print(dataframe)
         print(type(dataframe))
         self.dataframe = dataframe

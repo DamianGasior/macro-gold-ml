@@ -1,25 +1,23 @@
-import pandas as pd
+import logging
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error,root_mean_squared_error
+import pandas as pd
 
 # from feature_engineering import FeatureEngineering
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import (
-    accuracy_score,
     ConfusionMatrixDisplay,
+    accuracy_score,
     classification_report,
     confusion_matrix,
-    roc_auc_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
+    root_mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import TimeSeriesSplit
-import logging
-from pathlib import Path
-from xgboost import XGBClassifier
-import xgboost as xgb
-import os
-import matplotlib.pyplot as plt
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
 
 current_dir = os.path.dirname(__file__)
 
@@ -49,13 +47,25 @@ class Regression_model:
         return self._X_train 
     
     @property
+    def return_y_train(self):
+        return self._y_train 
+    
+    @property
+    def return_x(self):
+        return self._x 
+    
+    @property
+    def return_y_pred(self):
+        return self._y_pred 
+    
+    @property
     def return_model_f_reg(self):
         return self._model_forest_reg
     
 
     def combine_dataframes(self, raw_data_df, feature_df):
         self._combined_dataframe = feature_df.join(
-            raw_data_df[["USD_PLN"]], how="inner"
+            raw_data_df[["GOLD"]], how="inner"
         )  # merging two df's  by dates, mathcing to dates in feature.df dataframe.
         # print(type(self._combined_dataframe))
         logging.debug(self._combined_dataframe.head(14))
@@ -66,15 +76,16 @@ class Regression_model:
         # sift(-1) becasue we want to predict the  quote for tomorrow, not for yesterday
 
         # self._combined_dataframe['target']=(self._combined_dataframe['USD_PLN'].shift(-1)>self._combined_dataframe['USD_PLN']).astype(int)
-        horizon = 5
+        horizon = 10
         self._combined_dataframe["target"] = (
-            self._combined_dataframe["USD_PLN"].shift(-horizon)
-            / self._combined_dataframe["USD_PLN"]
+            self._combined_dataframe["GOLD"].shift(-horizon)
+            / self._combined_dataframe["GOLD"]
             - 1
         )
 
         self._combined_dataframe = self._combined_dataframe.dropna()
         print(self._combined_dataframe.head(14))
+        print(self._combined_dataframe.tail(14))
 
         self._combined_dataframe = self._combined_dataframe.dropna()
         self._x = self._combined_dataframe.drop(
@@ -85,7 +96,10 @@ class Regression_model:
         self._y = self._combined_dataframe[
             "target"
         ]  # leaving selected columns df with target
-        # print(self._y)
+        print(self._y)
+        print(self._y.head(10))
+        print(self._y.tail(10))
+
 
         # Below lines, counts how much in percentage there are results with '0' , how much with results '1'
         logging.info(
@@ -136,6 +150,7 @@ class Regression_model:
 
         self._model_forest_reg = model.fit(self._X_train, self._y_train)
         y_pred = model.predict(self._X_test)
+        print(y_pred.shape)
         self._y_pred = y_pred
         # print(self._y_pred)
  
@@ -224,18 +239,18 @@ class Regression_model:
         print(f"\nDirection accuracy is:, {da:.3%}, which tells us if we hit correctly te direction(sign);\nremeber : 50 % is random, above that its an edge" )
         return None
 
-    def confusion_matrix_graph(self, y_prediction, name: str):
-        plt.figure()
-        cm_result = ConfusionMatrixDisplay.from_predictions(
-            self._y_test,
-            y_prediction,
-            display_labels=["USD_PLN", "USD_PLN"],
-            cmap="Blues",
-        )
-        path_boost = os.path.join(current_dir, f"{name}_confusion_matrix.png")
-        plt.savefig(path_boost)
-        plt.close()
-        return cm_result
+    # def confusion_matrix_graph(self, y_prediction, name: str):
+    #     plt.figure()
+    #     cm_result = ConfusionMatrixDisplay.from_predictions(
+    #         self._y_test,
+    #         y_prediction,
+    #         display_labels=["USD_PLN", "USD_PLN"],
+    #         cmap="Blues",
+    #     )
+    #     path_boost = os.path.join(current_dir, f"{name}_confusion_matrix.png")
+    #     plt.savefig(path_boost)
+    #     plt.close()
+    #     return cm_result
 
     def different_params_setup(self, model_input, pred_input):
         accuracy = accuracy_score(self._y_test, pred_input)

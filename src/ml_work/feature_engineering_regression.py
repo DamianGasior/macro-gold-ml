@@ -1,7 +1,8 @@
 # from src.pipeline.pipeline import DataPipeline
-import pandas as pd
 import itertools
+
 import numpy as np
+import pandas as pd
 
 
 class FeatureRegressionEngineering:
@@ -9,7 +10,7 @@ class FeatureRegressionEngineering:
         self._dataframe = pd.DataFrame()
 
     @property
-    def fe_dataframe(self) -> pd.DataFrame:
+    def return_dataframe(self) -> pd.DataFrame:
         return self._dataframe
 
 
@@ -36,13 +37,13 @@ class FeatureRegressionEngineering:
 
 
     def feature_enginerring_pipeline(self,dataframe):
-        print(dataframe.head(10))
+        # print(dataframe.head(10))
         self.basic_metrics(dataframe)
         self.z_score(dataframe)
         # self.ratios(dataframe,'GLD','UUP','USD_PLN')
-        self.ratios2(dataframe,'USD_PLN')
+        self.ratios2(dataframe,'GOLD')
         self.clean_features()
-        self.spread_between_yields(dataframe,'US10Y','PL10Y')
+        self.spread_between_yields(dataframe,'US10Y','US5Y')
         # self.correlation_between_instruments(dataframe)
         return self._dataframe
     
@@ -86,22 +87,25 @@ class FeatureRegressionEngineering:
             self._dataframe[f"{symbol}_return_1"] = price_lag.pct_change(1)
             self._dataframe[f"{symbol}_return_2"] = price_lag.pct_change(2)
             self._dataframe[f"{symbol}_return_3"] = price_lag.pct_change(3)
-            self._dataframe[f"{symbol}_return_4"] = price_lag.pct_change(4)
+            # self._dataframe[f"{symbol}_return_4"] = price_lag.pct_change(4)
             self._dataframe[f"{symbol}_return_5"] = price_lag.pct_change(5)
             self._dataframe[f"{symbol}_return_10"] = price_lag.pct_change(10)
             self._dataframe[f"{symbol}_return_20"] = price_lag.pct_change(20)
+            self._dataframe[f"{symbol}_return_30"] = price_lag.pct_change(30)
+            self._dataframe[f"{symbol}_return_50"] = price_lag.pct_change(30)
 
-            self._dataframe[f"{symbol}_momentum_ratio"] = self._dataframe[f"{symbol}_return_5"] / self._dataframe[f"{symbol}_return_20"] 
+
+            self._dataframe[f"{symbol}_momentum_ratio"] = self._dataframe[f"{symbol}_return_10"] / self._dataframe[f"{symbol}_return_20"] 
 
             self._dataframe[f"{symbol}_rolling_mean_5"] = self._dataframe[f"{symbol}_return_1"].rolling(5).mean()
             self._dataframe[f"{symbol}_rolling_mean_10"] = self._dataframe[f"{symbol}_return_1"].rolling(10).mean()
             self._dataframe[f"{symbol}_rolling_mean_20"] = self._dataframe[f"{symbol}_return_1"].rolling(20).mean()
 
 
-            self._dataframe[f"{symbol}_vol_5"] = self._dataframe[f"{symbol}_return_1"].rolling(5).std()
-            self._dataframe[f"{symbol}_vol_20"] = self._dataframe[f"{symbol}_return_1"].rolling(20).std()
-            self._dataframe[f"{symbol}_vola_ratio_5/20"] = self._dataframe[f"{symbol}_vol_5"] / self._dataframe[f"{symbol}_vol_20"]
-            self._dataframe[f"{symbol}_high_vol"] = self._dataframe[f"{symbol}_vol_20"] / self._dataframe[f"{symbol}_vol_20"].rolling(50).mean()
+            self._dataframe[f"{symbol}_vol_10"] = self._dataframe[f"{symbol}_return_1"].rolling(5).std()
+            self._dataframe[f"{symbol}_vol_30"] = self._dataframe[f"{symbol}_return_1"].rolling(30).std()
+            self._dataframe[f"{symbol}_vola_ratio_10/30"] = self._dataframe[f"{symbol}_vol_10"] / self._dataframe[f"{symbol}_vol_30"]
+            self._dataframe[f"{symbol}_high_vol"] = self._dataframe[f"{symbol}_vol_30"] / self._dataframe[f"{symbol}_vol_30"].rolling(50).mean()
 
             rolling_max=price_lag.rolling(20).max()
             rolling_min=price_lag.rolling(20).min()
@@ -123,16 +127,18 @@ class FeatureRegressionEngineering:
         self._dataframe[f"{usd_pln}_{gold}_return_diff"] = dataframe[usd_pln].shift(1).pct_change() - dataframe[gold].shift(1).pct_change() 
         return self._dataframe
     
-    def ratios2(self, dataframe,usd_pln):
+    def ratios2(self, dataframe,underlying):
         for col in dataframe.columns:
-            if col!=usd_pln:
-                self._dataframe[f"{usd_pln}_{col}_return_diff"] = dataframe[usd_pln].shift(1).pct_change() - dataframe[col].shift(1).pct_change() 
+            if col!=underlying:
+                self._dataframe[f"{underlying}_{col}_return_diff"] = dataframe[underlying].shift(1).pct_change() - dataframe[col].shift(1).pct_change() 
         return self._dataframe
 
-    def spread_between_yields(self,dataframe,US_yield,PL_yield):
-        us_price_lag=dataframe[US_yield].shift(1)
-        pl_price_lag=dataframe[PL_yield].shift(1)
-        self._dataframe[f"{US_yield}_{PL_yield}_spread"] = us_price_lag - pl_price_lag
+
+# to be removed , I will be taking the spreads from fred directly 
+    def spread_between_yields(self,dataframe,US_yield_one,US_yield_two):
+        us_price_lag_1=dataframe[US_yield_one].shift(1)
+        us_price_lag_2=dataframe[US_yield_two].shift(1)
+        self._dataframe[f"{US_yield_one}_{US_yield_two}_spread"] = us_price_lag_1 - us_price_lag_2
         return self._dataframe
 
 
