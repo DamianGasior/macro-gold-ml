@@ -98,59 +98,6 @@ class DataPipeline:
         )
         return self._assets_combined_dataframes
 
-    def run_classification_features(self, dataframe_combined):
-
-        ## this part cover Classification
-        feature_dataframe = FeatureEngineering()
-        feature_dataframe.feature_enginerring_pipeline(dataframe_combined)
-
-        # run this feature engineering
-
-        #    or the below
-
-        # feature_dataframe.currency_features(
-        #     dataframe_combined, "USD_PLN", "EUR_USD", "UUP", "GLD")
-
-        # feature_dataframe.yield_spread_features(dataframe_combined, "US10Y", "PL10Y")
-
-        # feature_dataframe.etf_features(dataframe_combined, "EPOL", "SPY")
-
-        # # feature_dataframe.etf_ccy_features('USD_PLN','EPOL','SPY')
-
-        # feature_dataframe.correlation_betwee_instrumentss(
-        #     "USD_PLN", "EUR_USD", "UUP", "GLD",  "EPOL", "SPY")
-
-        feature_dataframe = feature_dataframe.fe_dataframe
-
-        # Random Forest pipeline
-        classification_datframe = Classification_model()
-
-        classification_datframe.combine_dataframes(dataframe_combined, feature_dataframe)
-        classification_datframe.set_train_test_split()
-        # classification_datframe.multiple_random_forest_combinations()
-        model_random_forest, y_pred_rd_forest = (
-            classification_datframe.run_random_forest_classifier()
-        )
-        classification_datframe.feature_importnace(model_random_forest)
-        classification_datframe.evaluate_segments(model_random_forest)
-        classification_datframe.different_params_setup(model_random_forest, y_pred_rd_forest)
-        classification_datframe.confusion_matrix_graph(y_pred_rd_forest, "random_forest")
-        classification_datframe.histogram_result("random_forest", model_random_forest)
-
-        # classification_datframe_splits=Classification_model()
-        # classification_datframe_splits.combine_dataframes(dataframe_combined,feature_dataframe)
-        # classification_datframe_splits.pipeline_with_time_series_split()
-
-        # Xgboost
-        # classification_datframe_xgboost = Classification_model()
-        # classification_datframe_xgboost.combine_dataframes(
-        #     dataframe_combined, feature_dataframe
-        # )
-        # classification_datframe_xgboost.set_train_test_split()
-        # model_xboost, y_pred_xgboost = classification_datframe_xgboost.run_xgboost_model()
-        # classification_datframe_xgboost.evaluate_segments(model_xboost)
-        # classification_datframe_xgboost.different_params_setup(model_xboost, y_pred_xgboost)
-        # classification_datframe_xgboost.confusion_matrix_graph(y_pred_xgboost, "xgboost")
 
     def run_pipeline(self):
 

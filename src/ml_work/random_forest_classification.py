@@ -18,6 +18,7 @@ pd.set_option("display.width", None)  # brak łamania linii
 
 # from feature_engineering import FeatureEngineering
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -46,7 +47,7 @@ class Regression_model:
         self._y_train = pd.DataFrame()
         self._y_test = pd.DataFrame()
         self._y_pred: np.ndarray | None = None
-        self._model_forest_reg: RandomForestRegressor | None = None
+        self._model_forest_class: RandomForestRegressor | None = None
 
     @property
     def return_combined_dataframe(self) -> pd.DataFrame():
@@ -96,12 +97,12 @@ class Regression_model:
         print(self._combined_dataframe["target_pct"].head())
 
 
-        # q_low = future_return.quantile(0.3)
-        # q_high = future_return.quantile(0.7)
+        q_low = future_return.quantile(0.3)
+        q_high = future_return.quantile(0.7)
 
-        self._combined_dataframe["target"] = future_return
-        # self._combined_dataframe.loc[future_return <= q_low, "target"] = 0  # down
-        # self._combined_dataframe.loc[future_return >= q_high, "target"] = 2  # up
+        self._combined_dataframe["target"] = 1
+        self._combined_dataframe.loc[future_return <= q_low, "target"] = 0  # down
+        self._combined_dataframe.loc[future_return >= q_high, "target"] = 2  # up
 
         # self._combined_dataframe["target"] = (future_return >0).astype(int) # considering only the 40% top returns
 
@@ -139,9 +140,9 @@ class Regression_model:
             self._x, self._y, test_size=0.2, shuffle=False
         )
 
-    def run_random_forest_regression(self):
+    def run_random_forest_classification(self):
 
-        model = RandomForestRegressor(
+        model = RandomForestClassifier (
             n_estimators=300,  # liczba drzew
             max_depth=3,  # płytkie drzewa = mniej overfittingu
             min_samples_leaf=10,  # wygładza predykcje
@@ -155,29 +156,14 @@ class Regression_model:
         model details are: {model.get_params()}"""
         )
 
-        mask = ~np.isfinite(self._X_train.to_numpy())
+    
+        self._model_forest_class=model.fit(self._X_train, self._y_train)
+        prob_up = self._model_forest_class.predict_proba(self._X_test)[:, 2] 
 
-        print("INF/NAN count:", mask.sum())
-        print(self._X_train.columns[mask.any(axis=0)])
 
-        self._model_forest_reg = model.fit(self._X_train, self._y_train)
-        y_pred = self._model_forest_reg.predict(self._X_test)
-        print(y_pred.shape)
-        self._y_pred = y_pred
-        # print(self._y_pred)
+        return prob_up
 
-        corr = np.corrcoef(y_pred, self._y_test)[0, 1]
-        print("corr:", corr)
-        print(
-            "if corr < 0 , model is inverted(prediction up and target down and vice versa); if corr > 0 , then model works as a classical model(  pred  up and target up ; pred down and target down )"
-        )
-
-        # print(np.unique(self._y))  # returns [ 0 1]
-        # print(np.unique(self._model_forest_reg.predict(self._x)))  # returns [0.20141806 0.20218758 0.20556417 ... 0.81441768 0.81523677 0.82363257], retuns probabilities
-
-        return y_pred
-
-    def backtest_strategy(self):
+    def backtest_strategy(self,proba_up):
 
         self._combined_dataframe["predicted_signal"] = np.nan  # assigningn nan to the whole column
         self._combined_dataframe.loc[self._X_test.index, "predicted_signal"] = (
@@ -191,8 +177,8 @@ class Regression_model:
         threshold_bottom = self._combined_dataframe.loc[mask, "predicted_signal"].quantile(0.3)
 
         self._combined_dataframe["position"] = 0  # assigning by default all values to 0
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] > threshold_top ),'position'] = 1
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] < threshold_bottom ),'position'] = -1
+        self._combined_dataframe.loc[mask & (proba_up > 0.6 ),'position'] = 1
+        self._combined_dataframe.loc[mask & (proba_up < 0.4 ),'position'] = -1
 
  
         years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
@@ -272,95 +258,95 @@ class Regression_model:
         plt.savefig(path)
         plt.close()
 
-    def evaluate_segments(self):
+    # def evaluate_segments(self):
 
-        corr = np.corrcoef(self._y_pred, self._y_test)[0, 1]
-        print(
-            f"""\nCorrelation is {corr}
+    #     corr = np.corrcoef(self._y_pred, self._y_test)[0, 1]
+    #     print(
+    #         f"""\nCorrelation is {corr}
         
-        In finance : 
-        correlation	meaning
-        0.05-0.15	weak signal
-        0.2-0.3	OK
-        0.3-0.5	strong singanl ✅
-        >0.5	rare / suspiciously high
-        """
-        )
+    #     In finance : 
+    #     correlation	meaning
+    #     0.05-0.15	weak signal
+    #     0.2-0.3	OK
+    #     0.3-0.5	strong singanl ✅
+    #     >0.5	rare / suspiciously high
+    #     """
+    #     )
 
-        # parameter=0.1
-        # len_of_data=len(self._y_pred)
-        # k=int(parameter * len_of_data)
+    #     # parameter=0.1
+    #     # len_of_data=len(self._y_pred)
+    #     # k=int(parameter * len_of_data)
 
-        # assert len(self._y_pred) == len(self._y_test), 'y_test and y_pred do not have the same lenght'
+    #     # assert len(self._y_pred) == len(self._y_test), 'y_test and y_pred do not have the same lenght'
 
-        # # print(k)
-        # y_pred_sorted=np.argsort(self._y_pred)
-        # # print(y_pred_sorted)
+    #     # # print(k)
+    #     # y_pred_sorted=np.argsort(self._y_pred)
+    #     # # print(y_pred_sorted)
 
-        # top_per_index = y_pred_sorted[-k:]
-        # bottom_per_index = y_pred_sorted[:k]
+    #     # top_per_index = y_pred_sorted[-k:]
+    #     # bottom_per_index = y_pred_sorted[:k]
 
-        target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target_pct"]
-        # print(target_pct_test)
-        assert len(target_pct_test) == len(
-            self._y_test
-        ), "y_test and y_pred do not have the same lenght"
+    #     target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target_pct"]
+    #     # print(target_pct_test)
+    #     assert len(target_pct_test) == len(
+    #         self._y_test
+    #     ), "y_test and y_pred do not have the same lenght"
 
-        parameter = 0.3
-        len_of_data = len(target_pct_test)
-        k = int(parameter * len_of_data)
+    #     parameter = 0.3
+    #     len_of_data = len(target_pct_test)
+    #     k = int(parameter * len_of_data)
 
-        # print(k)
-        sortted_y_pred = np.argsort(self._y_pred)
-        # print(y_pred_sorted)
+    #     # print(k)
+    #     sortted_y_pred = np.argsort(self._y_pred)
+    #     # print(y_pred_sorted)
 
-        top_per_index = sortted_y_pred[-k:]
-        bottom_per_index = sortted_y_pred[:k]
+    #     top_per_index = sortted_y_pred[-k:]
+    #     bottom_per_index = sortted_y_pred[:k]
 
-        top_return = target_pct_test.iloc[top_per_index].mean()
-        bottom_return = target_pct_test.iloc[bottom_per_index].mean()
+    #     top_return = target_pct_test.iloc[top_per_index].mean()
+    #     bottom_return = target_pct_test.iloc[bottom_per_index].mean()
 
-        print(f"Top {parameter:.2%}  avg return: {top_return}, in  pct it is :{top_return:.3%}")
-        print(
-            f"Bottom {parameter:.2%}  avg return:{bottom_return}, in  pct it is :{bottom_return:.3%}"
-        )
+    #     print(f"Top {parameter:.2%}  avg return: {top_return}, in  pct it is :{top_return:.3%}")
+    #     print(
+    #         f"Bottom {parameter:.2%}  avg return:{bottom_return}, in  pct it is :{bottom_return:.3%}"
+    #     )
 
-        hit_rate_positive_return = (target_pct_test.iloc[top_per_index] > 0).mean()
-        print(f"Hit rate for top {parameter:.2%} is {hit_rate_positive_return:.2%} ")
+    #     hit_rate_positive_return = (target_pct_test.iloc[top_per_index] > 0).mean()
+    #     print(f"Hit rate for top {parameter:.2%} is {hit_rate_positive_return:.2%} ")
 
-        hit_rate_pnegative_return = (target_pct_test.iloc[top_per_index] < 0).mean()
-        print(f"Hit rate for bottom {parameter:.2%} is {hit_rate_pnegative_return:.2%} ")
+    #     hit_rate_pnegative_return = (target_pct_test.iloc[top_per_index] < 0).mean()
+    #     print(f"Hit rate for bottom {parameter:.2%} is {hit_rate_pnegative_return:.2%} ")
 
-        std_test = self._y_test.std()
-        print(f"\ny_test std: {std_test},in  pct it is :{std_test:.3%}\n")
+    #     std_test = self._y_test.std()
+    #     print(f"\ny_test std: {std_test},in  pct it is :{std_test:.3%}\n")
 
-        mae = round(mean_absolute_error(self._y_test, self._y_pred), 6)
-        mse = mean_squared_error(self._y_test, self._y_pred)
-        rmse = root_mean_squared_error(self._y_test, self._y_pred)
-        r2 = r2_score(self._y_test, self._y_pred)
+    #     mae = round(mean_absolute_error(self._y_test, self._y_pred), 6)
+    #     mse = mean_squared_error(self._y_test, self._y_pred)
+    #     rmse = root_mean_squared_error(self._y_test, self._y_pred)
+    #     r2 = r2_score(self._y_test, self._y_pred)
 
-        print(
-            f"MAE test: {mae}, in  pct it is :{mae:.3%}; average model mistake vs std: {std_test:.3%}"
-        )  # its not sensitive on outliers, hence the punishment on errors is not so big
-        print(
-            f"MSE test: {mse},in  pct it is :{mse:.3%}"
-        )  # big errors are punished heavily , moslty used when big errors can be costly in the decision
-        print(
-            f"RMSE: ,{rmse},in  pct it is :{rmse:.3%}; how model does punish bigger mistakes, compare against  std: {std_test:.3%}"
-        )  # how the model makes bad predictions /errors, where big mistakes are punished more
-        print(
-            f"R2 test: {r2},in  pct it is :{r2:.3%}"
-        )  # not so useful here, it tells how much of it , comes form the model
+    #     print(
+    #         f"MAE test: {mae}, in  pct it is :{mae:.3%}; average model mistake vs std: {std_test:.3%}"
+    #     )  # its not sensitive on outliers, hence the punishment on errors is not so big
+    #     print(
+    #         f"MSE test: {mse},in  pct it is :{mse:.3%}"
+    #     )  # big errors are punished heavily , moslty used when big errors can be costly in the decision
+    #     print(
+    #         f"RMSE: ,{rmse},in  pct it is :{rmse:.3%}; how model does punish bigger mistakes, compare against  std: {std_test:.3%}"
+    #     )  # how the model makes bad predictions /errors, where big mistakes are punished more
+    #     print(
+    #         f"R2 test: {r2},in  pct it is :{r2:.3%}"
+    #     )  # not so useful here, it tells how much of it , comes form the model
 
-        RMSE_std = rmse / std_test
+    #     RMSE_std = rmse / std_test
 
-        print(
-            f"""RMSE_std is equal to : {RMSE_std}'
-                result	meaning
-        < 0.5	very good model
-        ~1.0	model ≈ noise
-        > 1.0	model weak"""
-        )
+    #     print(
+    #         f"""RMSE_std is equal to : {RMSE_std}'
+    #             result	meaning
+    #     < 0.5	very good model
+    #     ~1.0	model ≈ noise
+    #     > 1.0	model weak"""
+    #     )
 
         # directional accuracy, does the model recognize/predict the direction ( up or down)
         # 50 % is random, going above that is fine
