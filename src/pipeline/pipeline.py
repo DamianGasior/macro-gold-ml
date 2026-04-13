@@ -1,4 +1,16 @@
 from collections import deque
+from src.pipeline.utils import (
+    SYMBOL_MAPPINGS,BASE_UNDERLYING,
+    OTHER,
+    VIX_SYMBOLS,
+    CCY_SYMBOLS,
+    RATES,
+    REAL_YIELDS,
+    ETF,
+    RATE_DIFF,
+    INFL_EXP,
+    CPI,CRYPTOS
+)
 
 import pandas as pd
 
@@ -24,16 +36,13 @@ from .base_single_transformer import BaseDataTransformer
 # dataframes_list = Multiple_df_manager()
 
 
-
 class DataPipeline:
     def __init__(
         self,
-        outputsize : str | None = None,
+        outputsize: str | None = None,
         symbol: str | None = None,
         provider: BaseAPIProvider | None = None,
-        data_transformer: (
-            BaseDataTransformer | None
-        ) = None,  # hint plus a default paramenter
+        data_transformer: BaseDataTransformer | None = None,  # hint plus a default paramenter
         dataframes_list: Multiple_df_manager | None = None,
         assets_combined_dataframes: Multiple_df_manager | None = None,
     ):
@@ -48,24 +57,20 @@ class DataPipeline:
 
     @property
     def merged_dataframe(self) -> pd.DataFrame:
-        print('taking the details from property')
-        print(self._assets_combined_dataframes.head(15))
-        print(type(self._assets_combined_dataframes))
-        
+        # print("taking the details from property")
+        # print(self._assets_combined_dataframes.head(15))
+        # print(type(self._assets_combined_dataframes))
         return self._assets_combined_dataframes
-    
 
-
-
-    def run_requests(self,symbol_deque,broker,columns,outputsize):
+    def run_requests(self, symbol_deque, broker, columns, outputsize):
         shared_dataframes_list = Multiple_df_manager()
         shared_dataframes = Multiple_df_manager()
 
         while len(symbol_deque) > 0:
             symbol = symbol_deque.popleft()
-            if broker == 'twelve':
+            if broker == "twelve":
                 provider = Underlying_twelve_data_reuquest(symbol)
-            elif broker == 'fred':
+            elif broker == "fred":
                 provider = Fred_request_api(symbol)
             pipeline = DataPipeline(
                 outputsize=outputsize,
@@ -77,28 +82,29 @@ class DataPipeline:
             pipeline.run_api_requests(columns)
 
         return shared_dataframes_list.return_df
-            
-  
 
-    def run_api_requests(self,columns):
+    def run_api_requests(self, columns):
         api_request = self.provider.execute_full_request()
         self.data_transformer: BaseDataTransformer = self.provider.response_from_api(api_request)
-        self._assets_combined_dataframes=self.dataframes_list.multiple_df_manager_pipeline(self.data_transformer.to_dataframe())
+        self._assets_combined_dataframes = self.dataframes_list.multiple_df_manager_pipeline(
+            self.data_transformer.to_dataframe()
+        )
+        print('symbol_processing:',self.symbol)
         self._assets_combined_dataframes = self.dataframes_list.return_df
         print(type(self._assets_combined_dataframes))
         print((self._assets_combined_dataframes.tail(10)))
-        self._assets_combined_dataframes=Multiple_df_manager.rename_columns_in_df(self._assets_combined_dataframes,columns)
+        self._assets_combined_dataframes = Multiple_df_manager.rename_columns_in_df(
+            self._assets_combined_dataframes, columns
+        )
         return self._assets_combined_dataframes
-
-
 
     def run_classification_features(self, dataframe_combined):
 
         ## this part cover Classification
         feature_dataframe = FeatureEngineering()
         feature_dataframe.feature_enginerring_pipeline(dataframe_combined)
-        
-          # run this feature engineering
+
+        # run this feature engineering
 
         #    or the below
 
@@ -119,9 +125,7 @@ class DataPipeline:
         # Random Forest pipeline
         classification_datframe = Classification_model()
 
-        classification_datframe.combine_dataframes(
-            dataframe_combined, feature_dataframe
-        )
+        classification_datframe.combine_dataframes(dataframe_combined, feature_dataframe)
         classification_datframe.set_train_test_split()
         # classification_datframe.multiple_random_forest_combinations()
         model_random_forest, y_pred_rd_forest = (
@@ -129,12 +133,8 @@ class DataPipeline:
         )
         classification_datframe.feature_importnace(model_random_forest)
         classification_datframe.evaluate_segments(model_random_forest)
-        classification_datframe.different_params_setup(
-            model_random_forest, y_pred_rd_forest
-        )
-        classification_datframe.confusion_matrix_graph(
-            y_pred_rd_forest, "random_forest"
-        )
+        classification_datframe.different_params_setup(model_random_forest, y_pred_rd_forest)
+        classification_datframe.confusion_matrix_graph(y_pred_rd_forest, "random_forest")
         classification_datframe.histogram_result("random_forest", model_random_forest)
 
         # classification_datframe_splits=Classification_model()
@@ -152,75 +152,72 @@ class DataPipeline:
         # classification_datframe_xgboost.different_params_setup(model_xboost, y_pred_xgboost)
         # classification_datframe_xgboost.confusion_matrix_graph(y_pred_xgboost, "xgboost")
 
-
-    
     def run_pipeline(self):
 
-        def req_details(size_twelve,size_fred):
-            columns={
-            "EUR/USD": "EUR_USD",
-            "UUP" : "UUP",
-            "GLD": "GOLD",
-            "SPY": "SPY",
-            "DGS10": "US10Y",
-            "DGS5" : "US5Y",
-            # "10yply.b": "PL10Y",
-            "CPIAUCSL" : "CPI_US",  
-            "IR3TIB01USM156N":"US_3M",
-            "REAINTRATREARAT10Y" : "US10Y_Real_IR",
-            "WALCL" : "US_TotalAssets",
-            # "EWG" : 'EWG',
-            "USO" : "WTI",
-            "BNO" : "BRENT",
-            "BTC/USD" : "Bitcoin",
-            "VIXY" : "ShortTermVolat",
-             "VIXY" : "MediumTermVolat"
-        }
+        def req_details(size_twelve, size_fred):
 
+            symbol_td_deque = deque(["GLD", "SPY", "USO", "BNO", "BTC/USD"])  # "EWG"
+            twelve_req = DataPipeline()
+            twelve_req = self.run_requests(symbol_td_deque, "twelve", SYMBOL_MAPPINGS, size_twelve)
 
-# https://fred.stlouisfed.org/categories/32455
-# https://fred.stlouisfed.org/categories/32455?t=projection&ob=pv&od=desc
+            symbol_fred_deque = deque(
+                [
+                           "DEXUSEU",
+                    # "DEXCHUS",
+                    "DEXUSUK",
+                    "DEXSZUS",
+                    # "DEXHKUS",
+                    "DEXJPUS",
+                    "DEXSDUS","DEXCAUS",
+                    # "DGS10",
+                    # "DGS5",
+                    # "REAINTRATREARAT10Y",
+                    # "IR3TIB01USM156N",
+                    # "CPIAUCSL",
+                    # "WALCL",
+                    "VIXCLS",
+                    # "GVZCLS",
+                    # "VXVCLS",
+                    # "OVXCLS",
+                    # "VXTYN",
+                    # "AAAFF",
+                    # "T10Y2Y",
+                    # "T10Y3M",
+                    # "T5YFF",
+                    # "EXPINF1YR",
+                    # "EXPINF2YR",
+                    # "EXPINF5YR",
+                    # "EXPINF10YR"             
+                ]
+            )
+            fred_req = DataPipeline()
+            fred_req = self.run_requests(symbol_fred_deque, "fred", SYMBOL_MAPPINGS, size_fred)
 
-# https://fred.stlouisfed.org/categories/33446
+            return twelve_req, fred_req
 
-# https://fred.stlouisfed.org/categories/33446?t=yield%20curve&ob=pv&od=desc
+        # request for historical datagit
+        size_twelve_data = 5000
+        size_fred = 100000
+        twelve_req, fred_req = req_details(size_twelve_data, size_fred)
 
-# https://fred.stlouisfed.org/series/AAAFF
-# przydaloby sie jeszcze zadluzenie USA i  i PKB za ten sam okres
-
-# zobaczyc czy maja jakies  podbne dane do EUR
-
-
-            symbol_td_deque = deque(["EUR/USD","UUP","GLD", "SPY","USO" ,"BNO","BTC/USD", "VIXY","VIXM"#"EWG"
-                                    ])
-            twelve_req=DataPipeline()
-            twelve_req=self.run_requests(symbol_td_deque,'twelve',columns,size_twelve)
-
-            symbol_fred_deque = deque(["DGS10","DGS5","IRLTLT01PLM156N","REAINTRATREARAT10Y","CPIAUCSL",'WALCL'])
-            fred_req=DataPipeline()
-            fred_req=self.run_requests(symbol_fred_deque,'fred',columns,size_fred)
-
-            return twelve_req,fred_req
-        
-        #request for historical datagit 
-        size_twelve_data=5000
-        size_fred=100000
-        twelve_req,fred_req=req_details(size_twelve_data,size_fred)
-
-        #merging the two dataframes with all the prices from api providers 
-        general_object=Multiple_df_manager()
+        # merging the two dataframes with all the prices from api providers
+        general_object = Multiple_df_manager()
         general_object.multiple_df_manager_pipeline(twelve_req)
         general_object.multiple_df_manager_pipeline(fred_req)
-        
-        df_final=general_object.return_df
-        
+
+        df_final = general_object.return_df
+
         feature_dataframe_regression = FeatureRegressionEngineering()
         feature_dataframe_regression.feature_enginerring_pipeline(df_final)
 
         regression_datframe = Regression_model()
-        regression_datframe.regression_model_pipeline(df_final, feature_dataframe_regression.return_dataframe)
+        regression_datframe.regression_model_pipeline(
+            df_final, feature_dataframe_regression.return_dataframe
+        )
 
-             #request for latest 120 bd /snapshot data
+        # print(regression_datframe.return_combined_dataframe['equity_curve'])
+
+        # request for latest 120 bd /snapshot data
         # size_twelve_data=120
         # size_fred=120
         # twelve_req_latest,fred_req_latest=req_details(size_twelve_data,size_fred)
@@ -228,37 +225,22 @@ class DataPipeline:
         # general_object_latest=Multiple_df_manager()
         # general_object_latest.multiple_df_manager_pipeline(twelve_req_latest)
         # general_object_latest.multiple_df_manager_pipeline(fred_req_latest)
-        
+
         # df_final_latest=general_object_latest.return_df
-        
+
         # feature_dataframe_regression_latest = FeatureRegressionEngineering()
         # feature_dataframe_regression_latest.feature_enginerring_pipeline(df_final_latest)
 
         # regression_datframe_latest = Regression_model()
         # regression_datframe_latest.combine_dataframes(df_final_latest, feature_dataframe_regression_latest.return_dataframe)
-        
 
         # trading_model = Trading_venue()
         # trading_model.trading_pipeline(regression_datframe.return_X_train, regression_datframe.return_model_f_reg, regression_datframe.return_x ,regression_datframe.return_y_pred)
         # trading_model.trading_pipeline(regression_datframe.return_y_pred, regression_datframe.return_model_f_reg, regression_datframe.return_x )
 
-
         # trading_model_backtest = Backtest()
         # trading_model_backtest.trading_pipeline(regression_datframe.return_X_train, regression_datframe.return_model_f_reg, regression_datframe.return_x )
 
 
-
-
-
-
 def run_pipeline():
     return DataPipeline().run_pipeline()
-
-  
-    
-
-    
-
-
-   
-

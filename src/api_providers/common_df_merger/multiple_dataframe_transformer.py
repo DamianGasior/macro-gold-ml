@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 class Multiple_df_manager:
@@ -9,7 +10,15 @@ class Multiple_df_manager:
     @property
     def return_df(self):
         print(type(self.concact_df))
+        print(self.concact_df.dtypes)
+        print(self.concact_df.info())
+        print(self.concact_df.head(50))
+        # print(isinstance(self.concact_df,Multiple_df_manager))
+        # self.concact_df=Multiple_df_manager.normalize_df(self.concact_df)
+        assert self.concact_df.index.is_monotonic_increasing, "Index is not sorted!"
         return self.concact_df
+    
+
 
     def add_to_working_list(self, passed_df):
         # print(type(passed_df))
@@ -54,4 +63,13 @@ class Multiple_df_manager:
         df.rename(columns=columns_renamed, inplace=True)
         print(df.head(10))
         print(df.tail(10))
+        return df
+    
+    @staticmethod
+    def normalize_df(dataframe_received):
+        df=dataframe_received.copy()
+        df=df.sort_index()
+        df.index = pd.to_datetime(df.index)
+        df = df[~df.index.duplicated(keep="last")] # helps to avoid duplicates
+        assert df.index.is_monotonic_increasing, "Index is not sorted!"
         return df

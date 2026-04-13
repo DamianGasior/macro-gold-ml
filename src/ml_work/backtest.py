@@ -31,3 +31,22 @@ def backtest_trade(self,test_data,model):
 
 
 
+
+# poczytac o backtestingu : https://chatgpt.com/c/69cbb9c1-9db0-8389-b1a6-c9b2a87e1ab5
+
+
+
+# 1. Gotowe frameworki backtestingowe (najbliżej Twojego celu)
+# 🔹 Backtrader
+
+# 👉 jeden z najpopularniejszych open-source frameworków
+
+# Co ma:
+
+# ✔ PnL + equity curve
+# ✔ position sizing (long/short, % portfolio)
+# ✔ transaction costs / commission model
+# ✔ walk-forward możliwy przez custom logic
+# ✔ event-driven trading (jak w realu)
+
+# 👉 to jest “industry standard learning tool”

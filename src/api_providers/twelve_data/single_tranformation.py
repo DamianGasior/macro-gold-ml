@@ -1,5 +1,8 @@
 import pandas as pd
 from ...pipeline.base_single_transformer import BaseDataTransformer
+from src.api_providers.common_df_merger.multiple_dataframe_transformer import (
+    Multiple_df_manager,
+)
 
 
 class Data_transformation(BaseDataTransformer):
@@ -22,11 +25,11 @@ class Data_transformation(BaseDataTransformer):
             pd.to_numeric, errors="coerce"
         )  # transform input data from the df to numeric values, if it can not be transfromed to numeric, then it popualted NaN
         dataframe = dataframe.dropna()  # it drops from the row above all NaN rows
-        dataframe = dataframe[~dataframe.index.duplicated(keep="last")] # helps to avoid duplicates
-        print(dataframe)
-        print(type(dataframe))
-        self.dataframe = dataframe
-        print(type(self.dataframe))
+        print('symbol_processing:',self.symbol)
+        dataframe_normalized=Multiple_df_manager.normalize_df(dataframe)
+        self.dataframe = dataframe_normalized
+
+
         return self.dataframe
 
     def return_dataframe(self):
