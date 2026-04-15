@@ -21,15 +21,12 @@ from src.api_providers.fred.api_request_fred import Fred_request_api
 from src.api_providers.twelve_data.api_request_twelve_data import (
     Underlying_twelve_data_reuquest,
 )
-from src.ml_work.random_forest_classification import Classification_model
+from src.ml_work.classification.random_forest_classification import Classification_model
 
 # from src.api_providers.stooq.api_request_stooq import Stooq_request_api
-from src.ml_work.feature_engineering import FeatureEngineering
-from src.ml_work.feature_engineering_regression import FeatureRegressionEngineering
-from src.ml_work.regression import Regression_model
-
-from src.ml_work.trading_estimates import Trading_venue
-from src.ml_work.backtest import Backtest
+from src.ml_work.feature_engineering.feature_engineering import FeatureEngineering
+from src.ml_work.feature_engineering.feature_engineering_regression import FeatureRegressionEngineering
+from src.ml_work.regression.random_forest_regression import Regression_model
 
 from .base_api_request import BaseAPIProvider
 from .base_single_transformer import BaseDataTransformer
@@ -154,6 +151,8 @@ class DataPipeline:
         general_object.multiple_df_manager_pipeline(fred_req)
 
         df_final = general_object.return_df
+        # print(df_final.head(50))
+        # print(df_final.tail(50))
 
         feature_dataframe_regression = FeatureRegressionEngineering()
         feature_dataframe_regression.feature_enginerring_pipeline(df_final)
