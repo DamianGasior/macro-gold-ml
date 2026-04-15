@@ -481,4 +481,3 @@ class Regression_model:
         # print(f'_y_pred : {self._y_pred[0]}')
 
 
-# https://chatgpt.com/c/69d772eb-43ac-8325-8413-df0dde737f33

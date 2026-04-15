@@ -21,12 +21,13 @@ from src.api_providers.fred.api_request_fred import Fred_request_api
 from src.api_providers.twelve_data.api_request_twelve_data import (
     Underlying_twelve_data_reuquest,
 )
-from src.ml_work.classification import Classification_model
+from src.ml_work.random_forest_classification import Classification_model
 
 # from src.api_providers.stooq.api_request_stooq import Stooq_request_api
 from src.ml_work.feature_engineering import FeatureEngineering
 from src.ml_work.feature_engineering_regression import FeatureRegressionEngineering
 from src.ml_work.regression import Regression_model
+
 from src.ml_work.trading_estimates import Trading_venue
 from src.ml_work.backtest import Backtest
 
@@ -157,37 +158,20 @@ class DataPipeline:
         feature_dataframe_regression = FeatureRegressionEngineering()
         feature_dataframe_regression.feature_enginerring_pipeline(df_final)
 
-        regression_datframe = Regression_model()
-        regression_datframe.regression_model_pipeline(
+
+        # commenting out during Classification model being turned on 
+        
+        # regression_datframe = Regression_model()
+        # regression_datframe.regression_model_pipeline(
+        #     df_final, feature_dataframe_regression.return_dataframe
+        # )
+
+        classification_dataframe=Classification_model()
+        classification_dataframe.classification_model_pipeline(
             df_final, feature_dataframe_regression.return_dataframe
-        )
+            )
 
-        # print(regression_datframe.return_combined_dataframe['equity_curve'])
-
-        # request for latest 120 bd /snapshot data
-        # size_twelve_data=120
-        # size_fred=120
-        # twelve_req_latest,fred_req_latest=req_details(size_twelve_data,size_fred)
-
-        # general_object_latest=Multiple_df_manager()
-        # general_object_latest.multiple_df_manager_pipeline(twelve_req_latest)
-        # general_object_latest.multiple_df_manager_pipeline(fred_req_latest)
-
-        # df_final_latest=general_object_latest.return_df
-
-        # feature_dataframe_regression_latest = FeatureRegressionEngineering()
-        # feature_dataframe_regression_latest.feature_enginerring_pipeline(df_final_latest)
-
-        # regression_datframe_latest = Regression_model()
-        # regression_datframe_latest.combine_dataframes(df_final_latest, feature_dataframe_regression_latest.return_dataframe)
-
-        # trading_model = Trading_venue()
-        # trading_model.trading_pipeline(regression_datframe.return_X_train, regression_datframe.return_model_f_reg, regression_datframe.return_x ,regression_datframe.return_y_pred)
-        # trading_model.trading_pipeline(regression_datframe.return_y_pred, regression_datframe.return_model_f_reg, regression_datframe.return_x )
-
-        # trading_model_backtest = Backtest()
-        # trading_model_backtest.trading_pipeline(regression_datframe.return_X_train, regression_datframe.return_model_f_reg, regression_datframe.return_x )
-
+        
 
 def run_pipeline():
     return DataPipeline().run_pipeline()

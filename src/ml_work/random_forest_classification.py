@@ -37,7 +37,7 @@ current_dir = os.path.dirname(__file__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-class Regression_model:
+class Classification_model:
     def __init__(self):
         self._combined_dataframe = pd.DataFrame()
         self._x = pd.DataFrame()
@@ -46,8 +46,8 @@ class Regression_model:
         self._X_test = pd.DataFrame()
         self._y_train = pd.DataFrame()
         self._y_test = pd.DataFrame()
-        self._y_pred: np.ndarray | None = None
         self._model_forest_class: RandomForestRegressor | None = None
+        self._proba: np.ndarray | None = None
 
     @property
     def return_combined_dataframe(self) -> pd.DataFrame():
@@ -92,13 +92,20 @@ class Regression_model:
         self._combined_dataframe["moved_price"] = self._combined_dataframe["GOLD"].shift(-horizon)
         self._combined_dataframe["target_pct"] = future_return
 
-        print(self._combined_dataframe["target_pct"].describe())
+        # print(self._combined_dataframe["target_pct"].describe())
+        # print(self._combined_dataframe["target_pct"].head(50))
 
-        print(self._combined_dataframe["target_pct"].head())
-
+        min_future_return=future_return.min()
+        max_future_return=future_return.max()
+        print(f'min_future_return is : {min_future_return}')
+        print(f'max_future_return is : {max_future_return}')
 
         q_low = future_return.quantile(0.3)
+        print(f'Lower quantile is :{q_low}')
+        median=future_return.quantile(0.5)
+        print(f'Median quantile is :{median}')
         q_high = future_return.quantile(0.7)
+        print(f'Higher quantile is :{q_high}')
 
         self._combined_dataframe["target"] = 1
         self._combined_dataframe.loc[future_return <= q_low, "target"] = 0  # down
@@ -106,23 +113,18 @@ class Regression_model:
 
         # self._combined_dataframe["target"] = (future_return >0).astype(int) # considering only the 40% top returns
 
-        self._combined_dataframe = self._combined_dataframe.dropna(
-            subset=["target", "target_pct", "moved_price"]
-        )  # removing only those rows where target and 'target_pct' is NaN
-        print(self._combined_dataframe.isna().sum())
-        print(self._combined_dataframe["target"].value_counts())
+        self._combined_dataframe = self._combined_dataframe.dropna(subset=["target", "target_pct", "moved_price"])  # removing only those rows where target and 'target_pct' is NaN
+        # print(self._combined_dataframe.isna().sum())
+        # print(self._combined_dataframe["target"].value_counts())
 
-        self._x = self._combined_dataframe.drop(
-            columns=["target", "GOLD", "target_pct", "moved_price"]
-        )  # droppoing the selected columns, matrix with features
+        self._x = self._combined_dataframe.drop(columns=["target", "GOLD", "target_pct", "moved_price"])  # droppoing the selected columns, matrix with features
         self._y = self._combined_dataframe["target"]  # leaving selected columns df with target
         # logging.info(
         #     f"\nClass balance/distribution/proportion of the target is: {self._y.value_counts(normalize=True)}" # counts how much in percentage there are results with '0' , how much with results '1'
         # )
-        print(self._combined_dataframe[["target", "GOLD", "target_pct", "moved_price"]].head(50))
+        # print(self._combined_dataframe[["target", "GOLD", "target_pct", "moved_price"]].head(50))
 
         assert self._x.index.equals(self._y.index)
-
         return self._combined_dataframe
 
     def feature_importnace(self):
@@ -156,95 +158,66 @@ class Regression_model:
         model details are: {model.get_params()}"""
         )
 
-    
+        assert len(self._X_train) == len(self._y_train), 'self._X_train and self._y_train do not have the same lenght'
+
         self._model_forest_class=model.fit(self._X_train, self._y_train)
-        prob_up = self._model_forest_class.predict_proba(self._X_test)[:, 2] 
+        proba = self._model_forest_class.predict_proba(self._X_test)[:,:] 
+         # pick up all the line, but only the second column, which is the one for class 1
 
+        # numpy slicing
+        # [:, :]  → wszcopy all  (without any changes)
+        # [:, 1]  → one column  ( target score)
+        # [1, :]  → one row
 
-        return prob_up
+        # print(type(proba))
+        # print(len(proba))
+        self._proba=proba
+        # print(proba)
 
-    def backtest_strategy(self,proba_up):
+        print(f'proba.min:{proba.min()}')
+        print(f'proba.max: {proba.max()}')
 
-        self._combined_dataframe["predicted_signal"] = np.nan  # assigningn nan to the whole column
-        self._combined_dataframe.loc[self._X_test.index, "predicted_signal"] = (
-            self._y_pred
-        )  # assigning only those results, based on index from _x_test
+        
 
-        mask = self._combined_dataframe[
-            "predicted_signal"
-        ].notna()  # will be used for index where the value is not na
-        threshold_top = self._combined_dataframe.loc[mask, "predicted_signal"].quantile(0.7)
-        threshold_bottom = self._combined_dataframe.loc[mask, "predicted_signal"].quantile(0.3)
+    def backtest_strategy(self):
 
+        self._combined_dataframe[["proba_down","proba_up","proba_neutral"]] = np.nan
+        self._combined_dataframe.loc[self._X_test.index, "proba_up"] = self._proba[:,2]  # assigning only those results, based on index from _x_test
+        self._combined_dataframe.loc[self._X_test.index, "proba_down"] = self._proba[:,0]  # assigning only those results, based on index from _x_test
+        self._combined_dataframe.loc[self._X_test.index, "proba_neutral"] = self._proba[:,1]  # assigning only those results, based on index from _x_test
+        
+        mask = self._combined_dataframe["proba_up"].notna()  # will be used for index where the value is not na
+        self._combined_dataframe['score'] = self._combined_dataframe["proba_up"] - self._combined_dataframe["proba_down"] 
+        self._combined_dataframe.loc[mask,'rank'] = self._combined_dataframe.loc[mask,"score"].rank(pct=True)
         self._combined_dataframe["position"] = 0  # assigning by default all values to 0
-        self._combined_dataframe.loc[mask & (proba_up > 0.6 ),'position'] = 1
-        self._combined_dataframe.loc[mask & (proba_up < 0.4 ),'position'] = -1
-
- 
-        years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
-        print(years)
-  
-
-        # print(self._combined_dataframe["predicted_signal"].describe())
-        # print(self._combined_dataframe["predicted_signal"].isna().sum())
-        # test_print = self._combined_dataframe["predicted_signal"].notna() & (
-        #     self._combined_dataframe["predicted_signal"] != 0
-        # )
-        # print(test_print.value_counts().head(20))
-        # print(test_print.sum().head(20))
-
-        self._combined_dataframe["strategy_return"] = (
-            self._combined_dataframe["position"].shift(1) * self._combined_dataframe["target_pct"]
-        )
-        self._combined_dataframe["equity_curve"] = (
-            1 + self._combined_dataframe["strategy_return"]
-        ).cumprod()
-        # print(self._combined_dataframe["equity_curve"])
-        # print(self._combined_dataframe["equity_curve"].value_counts())
-        # print(self._combined_dataframe[["position", "target", "strategy_return"]].head(20))
-        # print(self._combined_dataframe["strategy_return"].sum())
-        # print(self._combined_dataframe["strategy_return"].abs().sum())
-
-        mask_return = self._combined_dataframe["strategy_return"].notna() & (
-            self._combined_dataframe["strategy_return"] != 0
-        )
-
+        self._combined_dataframe.loc[self._combined_dataframe['rank'] > 0.9,'position'] = 1
+        self._combined_dataframe.loc[self._combined_dataframe['rank'] < 0.1,'position'] = -1
        
-
-        # print(self._combined_dataframe.loc[mask_return, "strategy_return"].head(150))
-        # print("sum", self._combined_dataframe.loc[mask_return, "strategy_return"].sum())
-
-       
+        self._combined_dataframe["strategy_return"] = (self._combined_dataframe["position"].shift(1) * self._combined_dataframe["target_pct"])
+        self._combined_dataframe["equity_curve"] = (1 + self._combined_dataframe["strategy_return"]).cumprod()
+    
         returns=self._combined_dataframe["strategy_return"].dropna()
-
         sharpe = ((returns.mean()/returns.std())*np.sqrt(252))
         print('Share ratio (annualized) is : ' , sharpe)
 
-
-        retunrs_non_zero=returns[returns !=0].dropna()
-
-
-        n_trades=len(retunrs_non_zero)
-        print(f'\n number of returns higher than 0 : {retunrs_non_zero.count()}')
+        years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
+        retunrs_trades=returns[returns !=0].dropna()
+        n_trades=len(retunrs_trades) / years
+        print(f'\n number of returns higher than 0 : {retunrs_trades.count()}')
         print('number of returns equla to 0 : ',(returns == 0).sum())
-        sharpe_non_zero_days = ((retunrs_non_zero.mean()/retunrs_non_zero.std())*np.sqrt(n_trades))/years
-        # print(type(sharpe_non_zero_days))
-        print('Sharpe non zero ratio (considering trades) is : ' , sharpe_non_zero_days)
-
+        sharpe_trade= ((retunrs_trades.mean()/retunrs_trades.std())*np.sqrt(n_trades))
+        print('Sharpe non zero ratio (considering trades) is : ' , sharpe_trade)
 
         rolling_sh_feat=10
-        # print(returns.isna().sum())
-        sh_numerator= returns.rolling(rolling_sh_feat).mean().dropna()
-        sh_denominator=returns.rolling(rolling_sh_feat).std().dropna()
-        # print(sh_numerator.isna().sum())
-        # print(sh_denominator.isna().sum())
-
-
-
         sharpe_roll = (returns.rolling(rolling_sh_feat).mean()/returns.rolling(rolling_sh_feat).std()).dropna()
         print(f'Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}')
-        # print(self._combined_dataframe['predicted_signal','strategy_return','equity_curve'].tail(20))
 
+        equity=self._combined_dataframe['equity_curve'].dropna()
+        trading_years=(equity.index[-1]-equity.index[0]).days/365
+        cagr=(equity.iloc[-1]/equity.iloc[0])**(1/trading_years)-1
+        print(f'CAGR : {cagr}')
+
+  
         return self._combined_dataframe
 
     def equity_curve_result(self):
@@ -258,95 +231,69 @@ class Regression_model:
         plt.savefig(path)
         plt.close()
 
-    # def evaluate_segments(self):
+    def evaluate_segments(self):
 
-    #     corr = np.corrcoef(self._y_pred, self._y_test)[0, 1]
-    #     print(
-    #         f"""\nCorrelation is {corr}
-        
-    #     In finance : 
-    #     correlation	meaning
-    #     0.05-0.15	weak signal
-    #     0.2-0.3	OK
-    #     0.3-0.5	strong singanl ✅
-    #     >0.5	rare / suspiciously high
-    #     """
-    #     )
+        target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target_pct"]
+        # print(target_pct_test)
+        assert len(target_pct_test) == len(
+            self._y_test
+        ), "y_test and y_pred do not have the same lenght"
 
-    #     # parameter=0.1
-    #     # len_of_data=len(self._y_pred)
-    #     # k=int(parameter * len_of_data)
+        parameter = 0.3
+        len_of_data = len(target_pct_test)
+        k = int(parameter * len_of_data)
 
-    #     # assert len(self._y_pred) == len(self._y_test), 'y_test and y_pred do not have the same lenght'
+        # print(k)
+        sortted_y_pred = np.argsort(self._y_pred)
+        # print(y_pred_sorted)
 
-    #     # # print(k)
-    #     # y_pred_sorted=np.argsort(self._y_pred)
-    #     # # print(y_pred_sorted)
+        top_per_index = sortted_y_pred[-k:]
+        bottom_per_index = sortted_y_pred[:k]
 
-    #     # top_per_index = y_pred_sorted[-k:]
-    #     # bottom_per_index = y_pred_sorted[:k]
+        top_return = target_pct_test.iloc[top_per_index].mean()
+        bottom_return = target_pct_test.iloc[bottom_per_index].mean()
 
-    #     target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target_pct"]
-    #     # print(target_pct_test)
-    #     assert len(target_pct_test) == len(
-    #         self._y_test
-    #     ), "y_test and y_pred do not have the same lenght"
+        print(f"Top {parameter:.2%}  avg return: {top_return}, in  pct it is :{top_return:.3%}")
+        print(
+            f"Bottom {parameter:.2%}  avg return:{bottom_return}, in  pct it is :{bottom_return:.3%}"
+        )
 
-    #     parameter = 0.3
-    #     len_of_data = len(target_pct_test)
-    #     k = int(parameter * len_of_data)
+        hit_rate_positive_return = (target_pct_test.iloc[top_per_index] > 0).mean()
+        print(f"Hit rate for top {parameter:.2%} is {hit_rate_positive_return:.2%} ")
 
-    #     # print(k)
-    #     sortted_y_pred = np.argsort(self._y_pred)
-    #     # print(y_pred_sorted)
+        hit_rate_pnegative_return = (target_pct_test.iloc[top_per_index] < 0).mean()
+        print(f"Hit rate for bottom {parameter:.2%} is {hit_rate_pnegative_return:.2%} ")
 
-    #     top_per_index = sortted_y_pred[-k:]
-    #     bottom_per_index = sortted_y_pred[:k]
+        std_test = self._y_test.std()
+        print(f"\ny_test std: {std_test},in  pct it is :{std_test:.3%}\n")
 
-    #     top_return = target_pct_test.iloc[top_per_index].mean()
-    #     bottom_return = target_pct_test.iloc[bottom_per_index].mean()
+        mae = round(mean_absolute_error(self._y_test, self._y_pred), 6)
+        mse = mean_squared_error(self._y_test, self._y_pred)
+        rmse = root_mean_squared_error(self._y_test, self._y_pred)
+        r2 = r2_score(self._y_test, self._y_pred)
 
-    #     print(f"Top {parameter:.2%}  avg return: {top_return}, in  pct it is :{top_return:.3%}")
-    #     print(
-    #         f"Bottom {parameter:.2%}  avg return:{bottom_return}, in  pct it is :{bottom_return:.3%}"
-    #     )
+        print(
+            f"MAE test: {mae}, in  pct it is :{mae:.3%}; average model mistake vs std: {std_test:.3%}"
+        )  # its not sensitive on outliers, hence the punishment on errors is not so big
+        print(
+            f"MSE test: {mse},in  pct it is :{mse:.3%}"
+        )  # big errors are punished heavily , moslty used when big errors can be costly in the decision
+        print(
+            f"RMSE: ,{rmse},in  pct it is :{rmse:.3%}; how model does punish bigger mistakes, compare against  std: {std_test:.3%}"
+        )  # how the model makes bad predictions /errors, where big mistakes are punished more
+        print(
+            f"R2 test: {r2},in  pct it is :{r2:.3%}"
+        )  # not so useful here, it tells how much of it , comes form the model
 
-    #     hit_rate_positive_return = (target_pct_test.iloc[top_per_index] > 0).mean()
-    #     print(f"Hit rate for top {parameter:.2%} is {hit_rate_positive_return:.2%} ")
+        RMSE_std = rmse / std_test
 
-    #     hit_rate_pnegative_return = (target_pct_test.iloc[top_per_index] < 0).mean()
-    #     print(f"Hit rate for bottom {parameter:.2%} is {hit_rate_pnegative_return:.2%} ")
-
-    #     std_test = self._y_test.std()
-    #     print(f"\ny_test std: {std_test},in  pct it is :{std_test:.3%}\n")
-
-    #     mae = round(mean_absolute_error(self._y_test, self._y_pred), 6)
-    #     mse = mean_squared_error(self._y_test, self._y_pred)
-    #     rmse = root_mean_squared_error(self._y_test, self._y_pred)
-    #     r2 = r2_score(self._y_test, self._y_pred)
-
-    #     print(
-    #         f"MAE test: {mae}, in  pct it is :{mae:.3%}; average model mistake vs std: {std_test:.3%}"
-    #     )  # its not sensitive on outliers, hence the punishment on errors is not so big
-    #     print(
-    #         f"MSE test: {mse},in  pct it is :{mse:.3%}"
-    #     )  # big errors are punished heavily , moslty used when big errors can be costly in the decision
-    #     print(
-    #         f"RMSE: ,{rmse},in  pct it is :{rmse:.3%}; how model does punish bigger mistakes, compare against  std: {std_test:.3%}"
-    #     )  # how the model makes bad predictions /errors, where big mistakes are punished more
-    #     print(
-    #         f"R2 test: {r2},in  pct it is :{r2:.3%}"
-    #     )  # not so useful here, it tells how much of it , comes form the model
-
-    #     RMSE_std = rmse / std_test
-
-    #     print(
-    #         f"""RMSE_std is equal to : {RMSE_std}'
-    #             result	meaning
-    #     < 0.5	very good model
-    #     ~1.0	model ≈ noise
-    #     > 1.0	model weak"""
-    #     )
+        print(
+            f"""RMSE_std is equal to : {RMSE_std}'
+                result	meaning
+        < 0.5	very good model
+        ~1.0	model ≈ noise
+        > 1.0	model weak"""
+        )
 
         # directional accuracy, does the model recognize/predict the direction ( up or down)
         # 50 % is random, going above that is fine
@@ -440,20 +387,19 @@ class Regression_model:
 
         print("End of the TimeSeriesSplit")
 
-    def regression_model_pipeline(self, raw_dataframe, feat_dataframe):
+    def classification_model_pipeline(self, raw_dataframe, feat_dataframe):
         raw_dataframe = utils.clean_features(raw_dataframe)
         feat_dataframe = utils.clean_features(feat_dataframe)
 
         self.combine_dataframes(raw_dataframe, feat_dataframe)
 
         self.set_train_test_split()
-        self.run_random_forest_regression()
+        self.run_random_forest_classification()
         self.backtest_strategy()
-        self.evaluate_segments()
-        self.feature_importnace()
-        self.equity_curve_result()
-        # self.buy_sell_singal()
-        # self.multiple_random_forest_combinations()
+        # self.evaluate_segments()
+        # self.feature_importnace()
+        # self.equity_curve_result()
+
 
     def regression_time_split_model_pipeline(self, raw_dataframe, feat_dataframe):
         self.combine_dataframes(raw_dataframe, feat_dataframe)
