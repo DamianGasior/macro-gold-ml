@@ -36,7 +36,7 @@ current_dir = os.path.dirname(__file__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-class Regression_model:
+class LGBMRegressor:
     def __init__(self):
         self._combined_dataframe = pd.DataFrame()
         self._x = pd.DataFrame()
@@ -46,7 +46,7 @@ class Regression_model:
         self._y_train = pd.DataFrame()
         self._y_test = pd.DataFrame()
         self._y_pred: np.ndarray | None = None
-        self._model_forest_reg: RandomForestRegressor | None = None
+        self._lgbm_model: LGBMRegressor | None = None
 
     @property
     def return_combined_dataframe(self) -> pd.DataFrame():
@@ -141,11 +141,11 @@ class Regression_model:
 
     def run_random_forest_regression(self):
 
-        model = RandomForestRegressor(
+        model = LGBMRegressor(
             n_estimators=300,  # liczba drzew
             max_depth=3,  # płytkie drzewa = mniej overfittingu
-            min_samples_leaf=10,  # wygładza predykcje
-            max_features="sqrt",  # losowość → lepsza generalizacja
+            num_leaves=15, 
+            learning_rate=0.05,
             random_state=42,
             n_jobs=-1,
         )
@@ -160,8 +160,8 @@ class Regression_model:
         print("INF/NAN count:", mask.sum())
         print(self._X_train.columns[mask.any(axis=0)])
 
-        self._model_forest_reg = model.fit(self._X_train, self._y_train)
-        y_pred = self._model_forest_reg.predict(self._X_test)
+        self._lgbm_model = model.fit(self._X_train, self._y_train)
+        y_pred = self._lgbm_model.predict(self._X_test)
         print(y_pred.shape)
         self._y_pred = y_pred
         # print(self._y_pred)
