@@ -25,8 +25,13 @@ from src.ml_work.classification.random_forest_classification import Classificati
 
 # from src.api_providers.stooq.api_request_stooq import Stooq_request_api
 from src.ml_work.feature_engineering.feature_engineering import FeatureEngineering
+from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import FeatureRegressionEngineeringLGBMR
+
 from src.ml_work.feature_engineering.feature_engineering_regression import FeatureRegressionEngineering
 from src.ml_work.regression.random_forest_regression import Regression_model
+from src.ml_work.lgbm_regressor.lgbm_regression import LGBMRegressor_model
+from src.ml_work.lgm_classifier.lgbm_classification import LGBMClassifier_model
+
 
 from .base_api_request import BaseAPIProvider
 from .base_single_transformer import BaseDataTransformer
@@ -154,8 +159,12 @@ class DataPipeline:
         # print(df_final.head(50))
         # print(df_final.tail(50))
 
-        feature_dataframe_regression = FeatureRegressionEngineering()
-        feature_dataframe_regression.feature_enginerring_pipeline(df_final)
+
+        # this feature_dataframe_regression is for both random forest models [regression and classification]
+        # feature_dataframe_regression = FeatureRegressionEngineering()
+        # feature_dataframe_regression.feature_enginerring_pipeline(df_final)
+
+
 
 
         # commenting out during Classification model being turned on 
@@ -165,10 +174,24 @@ class DataPipeline:
         #     df_final, feature_dataframe_regression.return_dataframe
         # )
 
-        classification_dataframe=Classification_model()
-        classification_dataframe.classification_model_pipeline(
-            df_final, feature_dataframe_regression.return_dataframe
-            )
+        # commenting out during Regreesion LGBMR is turned on 
+
+        # classification_dataframe=Classification_model()
+        # classification_dataframe.classification_model_pipeline(
+        #     df_final, feature_dataframe_regression.return_dataframe
+        #     )
+
+
+        # this is purely for LGBM model 
+        feature_dataframe_regression_lgbmr = FeatureRegressionEngineeringLGBMR()
+        feature_dataframe_regression_lgbmr.feature_enginerring_pipeline(df_final)
+
+        # regression_datframe_lgbmr = LGBMRegressor_model()
+        # regression_datframe_lgbmr.regression_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
+
+
+        classificaation_datframe_lgbmr = LGBMClassifier_model()
+        classificaation_datframe_lgbmr.classification_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
 
         
 

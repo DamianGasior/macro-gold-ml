@@ -11,13 +11,33 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
+import lightgbm
+print("lightgbm path:", lightgbm.__file__)
+
+from lightgbm import LGBMRegressor
+print("LGBMRegressor:", LGBMRegressor)
+
+from src.pipeline.utils import (
+    SYMBOL_MAPPINGS,BASE_UNDERLYING,
+    OTHER,
+    VIX_SYMBOLS,
+    CCY_SYMBOLS,
+    RATES,
+    REAL_YIELDS,
+    ETF,
+    RATE_DIFF,
+    INFL_EXP,
+    CPI,CRYPTOS
+)
+
 
 pd.set_option("display.max_rows", 200)  # więcej niż 150
 pd.set_option("display.max_columns", None)  # wszystkie kolumny
 pd.set_option("display.width", None)  # brak łamania linii
 
 # from feature_engineering import FeatureEngineering
-from lightgbm import LGBMRegressor
+
+
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -30,13 +50,14 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
 
+horizon = 21
 
 current_dir = os.path.dirname(__file__)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-class LGBMRegressor:
+class LGBMRegressor_model:
     def __init__(self):
         self._combined_dataframe = pd.DataFrame()
         self._x = pd.DataFrame()
@@ -71,62 +92,42 @@ class LGBMRegressor:
 
     @property
     def return_model_f_reg(self):
-        return self._model_forest_reg
+        return self._lgbm_model
 
-    def combine_dataframes(self, raw_data_df, feature_df):
-        raw_data_df_normalized = Multiple_df_manager.normalize_df(raw_data_df)
+    def combine_dataframes(self, feature_df):
+
         feature_df_normalized = Multiple_df_manager.normalize_df(feature_df)
-
-        self._combined_dataframe = feature_df_normalized.join(
-            raw_data_df_normalized[["GOLD"]], how="inner"
-        )  # merging two df's  by dates, mathcing to dates in feature.df dataframe.
-        # print(type(self._combined_dataframe))
+        print(feature_df_normalized.columns)
+        self._combined_dataframe=feature_df_normalized
         logging.debug(self._combined_dataframe.head(14))
         self._combined_dataframe = self._combined_dataframe.sort_index()
+        print('lenght of the dataframe before applying dropna():',len(self._combined_dataframe))
+        
+        future_return = self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
+        target = pd.qcut(future_return, 5, labels=False)
+        print(target)
+        self._combined_dataframe["target"] = target
+        print(self._combined_dataframe["target"].head())
 
-        horizon = 30
-        future_return = (
-            self._combined_dataframe["GOLD"].shift(-horizon) / self._combined_dataframe["GOLD"] - 1
-        )  # shifting the data by  horizon days and calc the return
-        self._combined_dataframe["moved_price"] = self._combined_dataframe["GOLD"].shift(-horizon)
-        self._combined_dataframe["target_pct"] = future_return
+        self._combined_dataframe = self._combined_dataframe.dropna(subset=["target",])  # removing only those rows where target and 'target_pct' is NaN
+        print('sum of na including features : \n',self._combined_dataframe.isna().sum())
+        print('sum of na in target column : ',self._combined_dataframe["target"].dropna())
 
-        print(self._combined_dataframe["target_pct"].describe())
-
-        print(self._combined_dataframe["target_pct"].head())
-
-
-        # q_low = future_return.quantile(0.3)
-        # q_high = future_return.quantile(0.7)
-
-        self._combined_dataframe["target"] = future_return
-        # self._combined_dataframe.loc[future_return <= q_low, "target"] = 0  # down
-        # self._combined_dataframe.loc[future_return >= q_high, "target"] = 2  # up
-
-        # self._combined_dataframe["target"] = (future_return >0).astype(int) # considering only the 40% top returns
-
-        self._combined_dataframe = self._combined_dataframe.dropna(
-            subset=["target", "target_pct", "moved_price"]
-        )  # removing only those rows where target and 'target_pct' is NaN
-        print(self._combined_dataframe.isna().sum())
-        print(self._combined_dataframe["target"].value_counts())
-
-        self._x = self._combined_dataframe.drop(
-            columns=["target", "GOLD", "target_pct", "moved_price"]
-        )  # droppoing the selected columns, matrix with features
+        self._x = self._combined_dataframe.drop(columns=["target", "GOLD"])  # droppoing the selected columns, matrix with features
         self._y = self._combined_dataframe["target"]  # leaving selected columns df with target
-        # logging.info(
-        #     f"\nClass balance/distribution/proportion of the target is: {self._y.value_counts(normalize=True)}" # counts how much in percentage there are results with '0' , how much with results '1'
-        # )
-        print(self._combined_dataframe[["target", "GOLD", "target_pct", "moved_price"]].head(50))
 
+        print('shape of X : ',self._x.shape)
+        print('shape of y : ',self._y.shape)
+
+
+        print(self._combined_dataframe[["target", "GOLD"]].tail(50))
         assert self._x.index.equals(self._y.index)
-
         return self._combined_dataframe
 
     def feature_importnace(self):
 
-        importance = self._model_forest_reg.feature_importances_
+        importance = self._lgbm_model.feature_importances_
+        print('feature_importances_',self._lgbm_model.feature_importances_)
         df_imp = pd.DataFrame(
             {"feature": self._X_train.columns, "importance": importance}
         ).sort_values(by="importance", ascending=False)
@@ -139,7 +140,7 @@ class LGBMRegressor:
             self._x, self._y, test_size=0.2, shuffle=False
         )
 
-    def run_random_forest_regression(self):
+    def run_lgmr_regressor(self):
 
         model = LGBMRegressor(
             n_estimators=300,  # liczba drzew
@@ -208,7 +209,7 @@ class LGBMRegressor:
         # print(test_print.sum().head(20))
 
         self._combined_dataframe["strategy_return"] = (
-            self._combined_dataframe["position"].shift(1) * self._combined_dataframe["target_pct"]
+            self._combined_dataframe["position"].shift(1) * self._combined_dataframe["target"]
         )
         self._combined_dataframe["equity_curve"] = (
             1 + self._combined_dataframe["strategy_return"]
@@ -300,7 +301,7 @@ class LGBMRegressor:
         # top_per_index = y_pred_sorted[-k:]
         # bottom_per_index = y_pred_sorted[:k]
 
-        target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target_pct"]
+        target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target"]
         # print(target_pct_test)
         assert len(target_pct_test) == len(
             self._y_test
@@ -448,24 +449,22 @@ class LGBMRegressor:
             # print(self._y_train)
             # print(self._y_test)
 
-            self.run_random_forest_regression()
+            self.run_lgmr_regressor()
             self.evaluate_segments()
             # self.feature_importnace()
 
         print("End of the TimeSeriesSplit")
 
-    def regression_model_pipeline(self, raw_dataframe, feat_dataframe):
-        raw_dataframe = utils.clean_features(raw_dataframe)
+    def regression_model_pipeline(self,  feat_dataframe):
+        # raw_dataframe = utils.clean_features(raw_dataframe)
         feat_dataframe = utils.clean_features(feat_dataframe)
-
-        self.combine_dataframes(raw_dataframe, feat_dataframe)
-
+        self.combine_dataframes( feat_dataframe)
         self.set_train_test_split()
-        self.run_random_forest_regression()
-        self.backtest_strategy()
+        self.run_lgmr_regressor()
+        # self.backtest_strategy()
         self.evaluate_segments()
         self.feature_importnace()
-        self.equity_curve_result()
+        # self.equity_curve_result()
         # self.buy_sell_singal()
         # self.multiple_random_forest_combinations()
 

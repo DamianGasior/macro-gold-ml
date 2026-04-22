@@ -36,10 +36,10 @@ ETF = {"SPY": "SPY"}
 COMM = {"USO": "WTI", "BNO": "BRENT"}
 
 RATE_DIFF = {
-    "AAAFF": "Corp_AAa-FedFundsRate",
+    # "AAAFF": "Corp_AAa-FedFundsRate",
     "T10Y2Y": "T10Y2Y",
-    "T10Y3M": "T10Y3M",
-    "T5YFF": "T5YFF",
+    # "T10Y3M": "T10Y3M",
+    # "T5YFF": "T5YFF",
 }
 
 INFL_EXP = {
@@ -70,7 +70,7 @@ SYMBOL_MAPPINGS = {
     # "VIXY" : "ShortTermVolat",
     #  "VIXY" : "MediumTermVolat",
     "VIXCLS": "CBOE_VIX",
-    "GVZCLS": "GOLD_VIX",
+    # "GVZCLS": "GOLD_VIX",
     "VXVCLS": "CBOE_VIX_3M_S&P500",
     "OVXCLS": "VIX_ON_OIL",
     "VXTYN": "VIX_OM_US10Y",
