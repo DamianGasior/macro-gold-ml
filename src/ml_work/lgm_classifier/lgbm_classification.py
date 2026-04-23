@@ -5,21 +5,16 @@ from src.api_providers.common_df_merger.multiple_dataframe_transformer import (
     Multiple_df_manager,
 )
 from src.ml_work import financial_metrics
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, roc_auc_score
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score
-import matplotlib.pyplot as plt
-
 import lightgbm
-print("lightgbm path:", lightgbm.__file__)
-
-from lightgbm import LGBMRegressor,LGBMClassifier
-print("LGBMRegressor:", LGBMRegressor)
+from lightgbm import LGBMRegressor, LGBMClassifier
 
 from src.pipeline.utils import (
-    SYMBOL_MAPPINGS,BASE_UNDERLYING,
+    SYMBOL_MAPPINGS,
+    BASE_UNDERLYING,
     OTHER,
     VIX_SYMBOLS,
     CCY_SYMBOLS,
@@ -28,9 +23,15 @@ from src.pipeline.utils import (
     ETF,
     RATE_DIFF,
     INFL_EXP,
-    CPI,CRYPTOS
+    CPI,
+    CRYPTOS,
 )
 
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s", force=True
+)
+
+logger = logging.getLogger(__name__)
 
 pd.set_option("display.max_rows", 200)  # więcej niż 150
 pd.set_option("display.max_columns", None)  # wszystkie kolumny
@@ -51,16 +52,33 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
 
-horizon = 21
 
 current_dir = os.path.dirname(__file__)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class LGBMClassifier_model:
+    """
+    LGBM Classification model for predicting GOLD price movements.
+    
+    This class implements a complete machine learning pipeline for binary classification
+    of GOLD price movements, including data preparation, model training, backtesting,
+    and performance evaluation.
+    
+    Attributes:
+        _combined_dataframe (pd.DataFrame): Merged and processed feature dataframe
+        _x (pd.DataFrame): Feature matrix (X)
+        _y (pd.DataFrame): Target variable (y)
+        _X_train, _X_test (pd.DataFrame): Train/test feature matrices
+        _y_train, _y_test (pd.DataFrame): Train/test target variables
+        _proba_train, _proba_test (np.ndarray): Prediction probabilities
+        _y_pred (np.ndarray): Binary predictions
+        _lgbm_model (LGBMClassifier): Trained LightGBM model
+    """
     def __init__(self):
         self._combined_dataframe = pd.DataFrame()
+        self._bt = pd.DataFrame()
         self._x = pd.DataFrame()
         self._y = pd.DataFrame()
         self._X_train = pd.DataFrame()
@@ -73,8 +91,7 @@ class LGBMClassifier_model:
         self._lgbm_model: LGBMClassifier | None = None
 
     @property
-    def return_combined_dataframe(self) -> pd.DataFrame():
-
+    def return_combined_dataframe(self) -> pd.DataFrame:
         return self._combined_dataframe
 
     @property
@@ -98,69 +115,100 @@ class LGBMClassifier_model:
         return self._lgbm_model
 
     def combine_dataframes(self, feature_df):
-
-        feature_df_normalized = Multiple_df_manager.normalize_df(feature_df)
-        print(feature_df_normalized.columns)
-        self._combined_dataframe=feature_df_normalized
-        logging.debug(self._combined_dataframe.head(14))
-        self._combined_dataframe = self._combined_dataframe.sort_index()
-        print('lenght of the dataframe before applying dropna():',len(self._combined_dataframe))
+        """
+        Normalize and prepare dataframes for modeling.
         
+        Creates target variable based on 70th and 30th percentiles of GOLD returns,
+        performs basic data cleaning, and splits features from target.
+        
+        Args:
+            feature_df (pd.DataFrame): Raw feature dataframe
+            
+        Returns:
+            pd.DataFrame: Combined dataframe with target variable
+        """
+        feature_df_normalized = Multiple_df_manager.normalize_df(feature_df)
+        logger.debug(f"Feature columns: {feature_df_normalized.columns.tolist()}")
+        self._combined_dataframe=feature_df_normalized
+        logger.debug(self._combined_dataframe.head(14))
+        self._combined_dataframe = self._combined_dataframe.sort_index()
+        logger.info(
+            f'Length of dataframe before applying dropna(): '
+            f'{len(self._combined_dataframe)}'
+        )
+
         future_return = self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
-        future_return_top=future_return.quantile(0.7)
-        future_return_bottom=future_return.quantile(0.3)
+        future_return_top = future_return.quantile(0.7)
+        future_return_bottom = future_return.quantile(0.3)
 
         # for longs and shorts
         # self._combined_dataframe["target"] = np.where(future_return >= future_return_top, 1,
-        # np.where(future_return <= future_return_bottom, -1, np.nan))                  
-         
-        # for longs only 
-        self._combined_dataframe["target"] = np.where(future_return >= future_return_top, 1,0) 
-       
+        # np.where(future_return <= future_return_bottom, -1, np.nan))
 
+        # for longs only
+        self._combined_dataframe["target"] = np.where(
+            future_return >= future_return_top, 1, 0
+        )
 
+        logger.info(f"Target value counts:\n{self._combined_dataframe['target'].value_counts(normalize=True)}")
+        logger.debug(f"Last 10 target values:\n{self._combined_dataframe['target'].tail(10)}")
 
-        print(self._combined_dataframe["target"].value_counts(normalize=True))
+        self._combined_dataframe = self._combined_dataframe.dropna(
+            subset=[
+                "target",
+            ]
+        )  # removing only those rows where target and 'target_pct' is NaN
+        logger.info(f"Sum of NaN including features:\n{self._combined_dataframe.isna().sum()}")
+        logger.debug(f"Sum of NaN in target column: {self._combined_dataframe['target'].dropna().sum()}")
 
-
-        print(self._combined_dataframe["target"].tail(10))
-
-
-        self._combined_dataframe = self._combined_dataframe.dropna(subset=["target",])  # removing only those rows where target and 'target_pct' is NaN
-        print('sum of na including features : \n',self._combined_dataframe.isna().sum())
-        print('sum of na in target column : ',self._combined_dataframe["target"].dropna())
-
-        self._x = self._combined_dataframe.drop(columns=["target", "GOLD"])  # droppoing the selected columns, matrix with features
+        self._x = self._combined_dataframe.drop(
+            columns=["target", "GOLD"]
+        )  # droppoing the selected columns, matrix with features
         self._y = self._combined_dataframe["target"]  # leaving selected columns df with target
 
-        print('shape of X : ',self._x.shape)
-        print('shape of y : ',self._y.shape)
+        logger.info(f"Shape of X: {self._x.shape}")
+        logger.info(f"Shape of y: {self._y.shape}")
 
-
-        print(self._combined_dataframe[["target", "GOLD"]].tail(50))
-        assert self._x.index.equals(self._y.index)
+        logger.debug(f"Last 50 rows of target and GOLD:\n{self._combined_dataframe[['target', 'GOLD']].tail(50)}")
+        assert self._x.index.equals(self._y.index), "X and y indices do not match"
         return self._combined_dataframe
 
-    def feature_importnace(self):
-
+    def feature_importance(self):
+        """
+        Calculate and display feature importances from trained model.
+        
+        Prints feature importance DataFrame sorted by importance in descending order
+        and cumulative sum of importances.
+        """
         importance = self._lgbm_model.feature_importances_
-        print('feature_importances_',self._lgbm_model.feature_importances_)
+        logger.debug(f"Feature importances: {importance}")
         df_imp = pd.DataFrame(
             {"feature": self._X_train.columns, "importance": importance}
         ).sort_values(by="importance", ascending=False)
-        print(df_imp.head(150))
+        logger.info(f"Top 150 feature importances:\n{df_imp.head(150)}")
         cumsum = df_imp["importance"].cumsum()
-        print(f"Cumsum results : \n {cumsum.head(150)}")
+        logger.info(f"Cumulative sum of importances:\n{cumsum.head(150)}")
 
     def set_train_test_split(self):
-        self._X_train, self._X_test, self._y_train, self._y_test = train_test_split(
-            self._x, self._y, test_size=0.2, shuffle=False
+        """
+        Split data into train and test sets maintaining temporal order.
+        
+        Uses 80/20 split with shuffle=False to preserve time series order.
+        """
+        self._X_train, self._X_test, self._y_train, self._y_test = (
+            train_test_split(
+                self._x, self._y, test_size=0.2, shuffle=False
+            )
         )
-        print(self._y_test.tail(50))
-       
+        logger.debug(f"Last 50 y_test values:\n{self._y_test.tail(50)}")
 
-    def run_lgmr_classifier(self):
-
+    def run_lgbm_classifier(self):
+        """
+        Train LightGBM classifier on training data.
+        
+        Trains model on _X_train/_y_train, generates predictions and probabilities
+        for both train and test sets. Applies threshold of 0.80 quantile for final predictions.
+        """
         model = LGBMClassifier(
             max_depth=2,
             num_leaves=15,
@@ -170,111 +218,137 @@ class LGBMClassifier_model:
             colsample_bytree=0.7,
             reg_lambda=3,
             reg_alpha=1,
-            force_col_wise='true',
+            force_col_wise=True,
             n_jobs=-1,
         )
-        print(
-            f"""
-        Model name is :  {type(model).__name__},
-        model details are: {model.get_params()}"""
-        )
+        logger.info(f"Model name: {type(model).__name__}")
+        logger.debug(f"Model details: {model.get_params()}")
 
         mask = ~np.isfinite(self._X_train.to_numpy())
 
-        print("INF/NAN count:", mask.sum())
-        print(self._X_train.columns[mask.any(axis=0)])
+        logger.warning(f"INF/NAN count: {mask.sum()}")
+        logger.warning(f"Columns with INF/NAN: {self._X_train.columns[mask.any(axis=0)].tolist()}")
 
         self._lgbm_model = model.fit(self._X_train, self._y_train)
         # proba = self._lgbm_model.predict_proba(self._X_test)[:,1]
         proba_train = self._lgbm_model.predict_proba(self._X_train)
 
         self._proba_train = proba_train
-        print(proba_train)
+        logger.debug(f"Training probabilities shape: {proba_train.shape}")
 
-        proba_test = self._lgbm_model.predict_proba(self._X_test)
+        proba_test = self._lgbm_model.predict_proba(self._X_test)[:, 1]
         self._proba_test = proba_test
+        logger.debug(f"Shape of  self._proba_test :\n{self._proba_test.shape}")
+
 
         # numpy slicing
         # [:, :]  → wszcopy all  (without any changes)
         # [:, 1]  → one column  ( target score)
         # [1, :]  → one row
 
-        print(self._lgbm_model.classes_)
+        logger.debug(f"Model classes: {self._lgbm_model.classes_}")
 
-        self._y_pred = np.where(self._proba_test[:,1] > self._proba_test[:,0], 1, -1) # for longs and shorts
+        # self._y_pred = np.where(self._proba_test[:,1] > self._proba_test[:,0], 1, -1) # for longs and shorts
 
-        # # for longs only 
-        # proba = self._proba_test[:,1]
-        # thr = np.quantile(self._proba_test[:,1],0.80)
-        # self._y_pred = np.where(proba >= thr,1,0)
+        # # for longs only
+        thr = np.quantile(self._proba_test, 0.80)
+        self._y_pred = np.where(self._proba_test >= thr, 1, 0)
 
     def backtest_strategy(self):
-
-        edge,short_quantile,long_quantile=LGBMClassifier_model.edge_method(self._proba_train)
-         
-        edge_test,short_quantile_test,long_quantile_test=LGBMClassifier_model.edge_method(self._proba_test)
-
-
-        self._combined_dataframe.loc[self._X_test.index,'prob_edge']=edge_test
-
-        print(self._combined_dataframe['prob_edge'] )
-        self._combined_dataframe["trade_signal"]=np.nan
-        self._combined_dataframe.loc[self._X_test.index,"trade_signal"]=np.where(
-            self._combined_dataframe.loc[self._X_test.index,'prob_edge'] >= long_quantile,1,
-            np.where(self._combined_dataframe.loc[self._X_test.index,'prob_edge'] < short_quantile ,0,0))
-       
+        """
+        Generate trading signals and backtest strategy performance.
         
+        Creates trade signals based on probability edge method, calculates strategy returns,
+        equity curve, and performance metrics including Sharpe ratio (both total and trade-based).
+        
+        Returns:
+            pd.DataFrame: Combined dataframe with strategy metrics and equity curve
+        """
+
+        self._combined_dataframe.loc[self._X_test.index, "prob_long"] = self._proba_test
+        logger.debug(f"self._proba_test mint is :\n{self._proba_test.min()} and max is {self._proba_test.max()}")
 
 
-        self._combined_dataframe["strategy_return"] = (self._combined_dataframe["trade_signal"] * self._combined_dataframe["GOLD"].pct_change(10).shift(-10))
-        self._combined_dataframe["equity_curve"] = (1 + self._combined_dataframe["strategy_return"]).cumprod()
-        print(self._combined_dataframe["strategy_return"])
-        returns=self._combined_dataframe["strategy_return"].dropna()
-        print(self._combined_dataframe["strategy_return"])
-        sharpe = ((returns.mean()/returns.std())*np.sqrt(252))
-        print('Sharpe ratio (annualized) is : ' , sharpe)
+        logger.debug(f"Last 20 probability edges:\n{self._combined_dataframe['prob_long'].tail(20)}")
+        self._combined_dataframe["trade_signal"] = np.nan
+   
+        # taking the top 30 % of best singals
+        self._combined_dataframe.loc[self._X_test.index, "trade_signal"] = (self._combined_dataframe.loc[self._X_test.index, "prob_long"].rank(pct=True).ge(0.7).astype(int))
 
-        years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
-        retunrs_trades=returns[returns !=0].dropna()
-        n_trades=len(retunrs_trades) / years
-        print(f'\n number of returns higher than 0 : {retunrs_trades.count()}')
-        print('number of returns equla to 0 : ',(returns == 0).sum())
-        sharpe_trade= ((retunrs_trades.mean()/retunrs_trades.std())*np.sqrt(n_trades))
-        print('Sharpe non zero ratio (considering trades) is : ' , sharpe_trade)
+        logger.debug(f"Last 20 trade signals:\n{self._combined_dataframe['trade_signal'].tail(20)}")
+        logger.info(f"Trade signal value counts:\n{self._combined_dataframe['trade_signal'].value_counts()}")
 
-        rolling_sh_feat=10
-        sharpe_roll = (returns.rolling(rolling_sh_feat).mean()/returns.rolling(rolling_sh_feat).std()).dropna()
-        print(f'Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}')
-         
-        return self._combined_dataframe
-    
+        self._combined_dataframe["strategy_return"] = self._combined_dataframe[
+            "trade_signal"
+        ].fillna(0) * self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
+        bt = self._combined_dataframe.dropna(subset=["strategy_return"]).copy()
+        self._bt=bt
+        logger.debug(f"Backtest dataframe:\n{self._bt}")
 
-    def evaluating_backtest_stategy(self):
+        self._bt["equity_curve"] = (1 + self._bt["strategy_return"]).cumprod()
+        logger.debug(f"Equity curve:\n{self._bt['equity_curve']}")
 
-        financial_metrics.calculate_cagr(self._combined_dataframe,'equity_curve')
-        financial_metrics.drawdown_from_peak(self._combined_dataframe,'equity_curve')
-        financial_metrics.return_std(self._combined_dataframe,'strategy_return')
+        returns = self._bt["strategy_return"].dropna()
+        logger.debug(f"Strategy returns:\n{self._bt['strategy_return']}")
+        logger.debug(f"Strategy returns value counts:\n{self._bt['strategy_return'].value_counts()}")
+        sharpe = (returns.mean() / returns.std()) * np.sqrt(252)
+        logger.info(f"Sharpe ratio (annualized): {sharpe}")
 
-                
-        pnl_long=self._combined_dataframe[self._combined_dataframe["position"] == 1]["strategy_return"].mean()
-        pnl_short=self._combined_dataframe[self._combined_dataframe["position"] == -1]["strategy_return"].mean()
-        hit_rate=(self._combined_dataframe["strategy_return"] > 0).mean()
-        average_trade_return=self._combined_dataframe["strategy_return"].mean()
+        years = self._bt.index.max().year - self._bt.index.min().year
+        retunrs_trades = returns[returns != 0].dropna()
+        n_trades = len(retunrs_trades) / years
+        logger.info(f"Number of returns higher than 0: {retunrs_trades.count()}")
+        logger.info(f"Number of returns equal to 0: {(returns == 0).sum()}")
+        sharpe_trade = (retunrs_trades.mean() / retunrs_trades.std()) * np.sqrt(n_trades)
+        logger.info(f"Sharpe non-zero ratio (considering trades): {sharpe_trade}")
 
-        print('pnl_long : ' ,pnl_long)
-        print('pnl_short : ' , pnl_short)
-        print('hit_rate : ' ,hit_rate)
-        print('average_trade_return : ' ,average_trade_return)
+        rolling_sh_feat = 10
+        sharpe_roll = (
+            returns.rolling(rolling_sh_feat).mean() / returns.rolling(rolling_sh_feat).std()
+        ).dropna()
+        logger.info(f"Rolling sharpe ratio (window={rolling_sh_feat}):\n{sharpe_roll}")
 
-        financial_metrics.buy_and_hold_strateg(self._combined_dataframe,'GOLD')    
-        financial_metrics.calculate_cagr(self._combined_dataframe,'GOLD')
-        financial_metrics.drawdown_from_peak(self._combined_dataframe,'GOLD')
-        financial_metrics.return_std(self._combined_dataframe,'GOLD_daily_return')
+        return self._bt
 
+    def evaluating_backtest_strategy(self):
+        """
+        Calculate comprehensive backtest evaluation metrics.
+        
+        Computes CAGR, drawdown, return statistics, P&L by position,
+        hit rate, and buy-and-hold comparison metrics.
+        """
+        financial_metrics.calculate_cagr(self._bt, "equity_curve")
+        financial_metrics.drawdown_from_peak(self._bt, "equity_curve")
+        financial_metrics.return_std(self._bt, "strategy_return")
+
+        pnl_long = self._bt[self._bt["trade_signal"] == 1][
+            "strategy_return"
+        ].mean()
+        # pnl_short = self._bt[self._combined_dataframe["position"] == -1][
+        #     "strategy_return"
+        # ].mean()
+        hit_rate = (self._bt["strategy_return"] > 0).mean()
+        average_trade_return = self._bt["strategy_return"].mean()
+
+        logger.info(f"PnL Long: {pnl_long}")
+        # logger.info(f"PnL Short: {pnl_short}")
+        logger.info(f"Hit Rate: {hit_rate}")
+        logger.info(f"Average Trade Return: {average_trade_return}")
+
+        financial_metrics.buy_and_hold_strateg(self._bt, "GOLD")
+        financial_metrics.calculate_cagr(self._bt, "GOLD")
+        financial_metrics.drawdown_from_peak(self._bt, "GOLD")
+        financial_metrics.return_std(self._bt, "GOLD_return")
 
     def equity_curve_result(self):
+        """
+        Generate and save equity curve visualization.
+        
+        Plots equity curve as time series and saves as JPEG image
+        in the current directory.
+        """
         plt.figure(figsize=(12, 6))
-        self._combined_dataframe['equity_curve'].plot()
+        self._combined_dataframe["equity_curve"].plot()
         plt.title("Equity Curve")
         plt.xlabel("Date")
         plt.ylabel("Equity")
@@ -284,7 +358,12 @@ class LGBMClassifier_model:
         plt.close()
 
     def evaluate_segments(self):
-
+        """
+        Analyze performance across percentile segments.
+        
+        Splits test data into top 30% and bottom 30% based on strategy returns,
+        calculates average returns for each segment, and prints comparative analysis.
+        """
         target_pct_test = self._combined_dataframe.loc[self._X_test.index, "target"]
         assert len(target_pct_test) == len(
             self._y_test
@@ -295,27 +374,22 @@ class LGBMClassifier_model:
         k = int(parameter * len_of_data)
 
         # sorted_prob = np.argsort(self._proba)
-        
-        sorted_prob=self._combined_dataframe["strategy_return"].sort_values()
-        print(sorted_prob)
-        print(sorted_prob.value_counts())
-       
+
+        sorted_prob = self._combined_dataframe["strategy_return"].sort_values()
+        logger.debug(f"Sorted probabilities:\n{sorted_prob}")
+        logger.debug(f"Sorted probabilities value counts:\n{sorted_prob.value_counts()}")
+
         top_per_index = sorted_prob[-k:]
         bottom_per_index = sorted_prob[:k]
 
         # top_return = target_pct_test.iloc[top_per_index].mean()
         # bottom_return = target_pct_test.iloc[bottom_per_index].mean()
 
-        
         top_return = top_per_index.mean()
         bottom_return = bottom_per_index.mean()
 
-        print(top_return,bottom_return)
-
-        print(f"Top {parameter:.2%}  avg return: {top_return}, in  pct it is :{top_return:.3%}")
-        print(
-            f"Bottom {parameter:.2%}  avg return:{bottom_return}, in  pct it is :{bottom_return:.3%}"
-        )
+        logger.info(f"Top {parameter:.2%} avg return: {top_return:.3%}")
+        logger.info(f"Bottom {parameter:.2%} avg return: {bottom_return:.3%}")
 
         # hit_rate_positive_return = (target_pct_test.iloc[top_per_index] > 0).mean()
         # print(f"Hit rate for top {parameter:.2%} is {hit_rate_positive_return:.2%} ")
@@ -324,9 +398,8 @@ class LGBMClassifier_model:
         # print(f"Hit rate for bottom {parameter:.2%} is {hit_rate_pnegative_return:.2%} ")
 
         std_test = self._y_test.std()
-        print(f"\ny_test std: {std_test},in  pct it is :{std_test:.3%}\n")
+        logger.info(f"y_test std: {std_test:.3%}")
 
-        
         return None
 
     # def confusion_matrix_graph(self, y_prediction, name: str):
@@ -343,19 +416,27 @@ class LGBMClassifier_model:
     #     return cm_result
 
     def different_params_setup(self):
+        """
+        Evaluate model performance using various metrics.
+        
+        Prints accuracy score, train/test accuracy, confusion matrix,
+        classification report, ROC AUC score, and log loss.
+        """
         accuracy = accuracy_score(self._y_test, self._y_pred)
         print(f"accuracy_score is : {accuracy}")
-        train_acc = self._lgbm_model.score(self._X_train, self._y_train)  # accuracy on training data
+        train_acc = self._lgbm_model.score(
+            self._X_train, self._y_train
+        )  # accuracy on training data
         test_acc = self._lgbm_model.score(self._X_test, self._y_test)
-        print(f"Train accuracy is : {train_acc}")
-        print(f"Test accuracy is : {test_acc}")
-        print(f"{confusion_matrix(self._y_test, self._y_pred)}")
-        print(f"{classification_report(self._y_test, self._y_pred)}")
+        logger.info(f"Train accuracy: {train_acc}")
+        logger.info(f"Test accuracy: {test_acc}")
+        logger.info(f"Confusion matrix:\n{confusion_matrix(self._y_test, self._y_pred)}")
+        logger.info(f"Classification report:\n{classification_report(self._y_test, self._y_pred)}")
         # auc = roc_auc_score(self._y_test, self._proba)
-        auc = roc_auc_score(self._y_test, self._proba_test[:,1])
-        print("ROC AUC:", auc)
-        loss = log_loss(self._y_test, self._proba_test[:,1])
-        print('loss is : ',loss)
+        auc = roc_auc_score(self._y_test, self._proba_test[:, 1])
+        logger.info(f"ROC AUC: {auc}")
+        loss = log_loss(self._y_test, self._proba_test[:, 1])
+        logger.info(f"Log Loss: {loss}")
 
     # def multiple_random_forest_combinations(self):
     #     param_grid = {
@@ -370,7 +451,6 @@ class LGBMClassifier_model:
     #         "n_jobs=" : [1],
     #         "random_state": [42]
     #     }
-
 
     #     rfst = LGBMClassifier()
     #     tscv = TimeSeriesSplit(n_splits=5)
@@ -394,7 +474,6 @@ class LGBMClassifier_model:
     #     print(f"Train R2: {train_r2}")
     #     print(f"Test R2 : {test_r2}")
 
-        
     #     self._proba = proba
     #     print(proba)
     #     # numpy slicing
@@ -407,6 +486,12 @@ class LGBMClassifier_model:
     #     self._y_pred=pred
 
     def pipeline_with_time_series_split(self):
+        """
+        Execute pipeline using time series cross-validation.
+        
+        Splits data into 5 folds maintaining temporal order, trains separate models
+        for each fold, and evaluates performance across time periods.
+        """
         tscv = TimeSeriesSplit(n_splits=5)
         count = 0
         print("Start of the TimeSeriesSplit split : 5  ")
@@ -427,7 +512,7 @@ class LGBMClassifier_model:
                 self._y.iloc[test_idx],
             )
 
-            self.run_lgmr_classifier()
+            self.run_lgbm_classifier()
             self.backtest_strategy()
             self.evaluate_segments()
             self.different_params_setup()
@@ -435,21 +520,36 @@ class LGBMClassifier_model:
         print("End of the TimeSeriesSplit")
 
     def classification_model_pipeline(self,  feat_dataframe):
+        """
+        Execute complete classification model pipeline.
+        
+        Orchestrates data preparation, train/test split, model training, backtesting,
+        and feature importance analysis.
+        
+        Args:
+            feat_dataframe (pd.DataFrame): Feature dataframe for modeling
+        """
         # raw_dataframe = utils.clean_features(raw_dataframe)
         feat_dataframe = utils.clean_features(feat_dataframe)
-        self.combine_dataframes( feat_dataframe)
+        self.combine_dataframes(feat_dataframe)
         self.set_train_test_split()
-        self.run_lgmr_classifier()
-        # self.backtest_strategy()
+        self.run_lgbm_classifier()
+        self.backtest_strategy()
         # self.evaluate_segments()
-        # self.feature_importnace()
+        self.feature_importance()
         # self.equity_curve_result()
         # self.different_params_setup()
-        # self.evaluating_backtest_stategy()
+        self.evaluating_backtest_strategy()
         # self.multiple_random_forest_combinations()
 
-    def regression_time_split_model_pipeline(self, raw_dataframe, feat_dataframe):
-        self.combine_dataframes(raw_dataframe, feat_dataframe)
+    def regression_time_split_model_pipeline(self, feat_dataframe):
+        """
+        Execute classification pipeline with time series cross-validation.
+        
+        Args:
+            feat_dataframe (pd.DataFrame): Feature dataframe for modeling
+        """
+        self.combine_dataframes(feat_dataframe)
         self.pipeline_with_time_series_split()
         # self.feature_importnace()
 
@@ -461,13 +561,24 @@ class LGBMClassifier_model:
 
     @staticmethod
     def edge_method(proba):
-        prob_short=proba[:,0]
-        prob_long=proba[:,1]
+        """
+        Calculate quantile-based trading edge threshold.
+        
+        Computes 85th percentile of probabilities to use as threshold for trade signals.
+        
+        Args:
+            proba (np.ndarray): Array of probabilities from model
+            
+        Returns:
+            float: 85th percentile threshold value
+        """
+        # prob_short=proba[:,0]
+        prob_long = proba
 
-        edge=prob_long-prob_short
+        # edge=prob_long-prob_short
 
-        short_quantile= np.quantile(edge,0.15)
-        long_quantile= np.quantile(edge,0.85)
-        return edge,short_quantile,long_quantile
-
-
+        # short_quantile= np.quantile(edge,0.15)
+        long_quantile = np.quantile(prob_long, 0.85)
+        logger.debug(f"long_quantile: {long_quantile}")
+        logger.debug(f"probability long min is :\n{prob_long.min()} and max is {prob_long.max()} and quantile of 0,85 is ")
+        return long_quantile

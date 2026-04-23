@@ -63,6 +63,7 @@ class FeatureRegressionEngineeringLGBMR:
             for symbol in arg.values():
 
                 shifted_price=self._df[symbol].shift(1)
+                self._df[f"{symbol}_return"] = shifted_price.pct_change()
                 self._df[f"{symbol}_return_5"] = shifted_price.pct_change(5)
                 self._df[f"{symbol}_return_10"] = shifted_price.pct_change(10)
                 self._df[f"{symbol}_return_20"] = shifted_price.pct_change(20)
@@ -109,7 +110,6 @@ class FeatureRegressionEngineeringLGBMR:
         # the below does not work well for classfication model
         # shifted_spy=self._df['SPY'].shift(1)
         # self._df[f"SPY_risk_on_20"] = shifted_spy / shifted_spy.rolling(20).mean()
-        # self._df[f"SPY_risk_on_30"] = shifted_spy / shifted_spy.rolling(30).mean()
         
         return self._df
 
