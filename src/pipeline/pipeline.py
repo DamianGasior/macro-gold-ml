@@ -122,6 +122,7 @@ class DataPipeline:
                     # "DGS10",
                     # "DGS5",
                     # "REAINTRATREARAT10Y",
+                    # "USEPUINDXD",
                     # "IR3TIB01USM156N",
                     # "CPIAUCSL",
                     # "WALCL",
@@ -137,7 +138,9 @@ class DataPipeline:
                     # "EXPINF1YR",
                     # "EXPINF2YR",
                     # "EXPINF5YR",
-                    # "EXPINF10YR"             
+                    # "EXPINF10YR"      ,    
+                    "USEPUINDXD" ,
+                    "INFECTDISEMVTRACKD"     
                 ]
             )
             fred_req = DataPipeline()
@@ -192,6 +195,8 @@ class DataPipeline:
 
         classificaation_datframe_lgbmr = LGBMClassifier_model()
         classificaation_datframe_lgbmr.classification_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
+        # classificaation_datframe_lgbmr.classification_time_split_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
+
 
         
 

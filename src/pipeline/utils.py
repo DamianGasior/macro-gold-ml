@@ -67,6 +67,7 @@ SYMBOL_MAPPINGS = {
     "USO": "WTI",
     "BNO": "BRENT",
     "BTC/USD": "Bitcoin",
+    "USEPUINDXD": "EconomicPolicyUncertainty",
     # "VIXY" : "ShortTermVolat",
     #  "VIXY" : "MediumTermVolat",
     "VIXCLS": "CBOE_VIX",
@@ -90,9 +91,21 @@ SYMBOL_MAPPINGS = {
     "DEXJPUS": "USD_JPY",
     "DEXSDUS": "USD_SEK",
     "DEXCAUS": "USD_CAD",
+    "USEPUINDXD" : "EconomicPolicyUncertainty",
+    "INFECTDISEMVTRACKD": "InfectiousDiseaseTracker"
 }
 
 DXY = {"DXY" : "DXY"}
+
+ECONOMIC_SENTIMENT = {
+    "USEPUINDXD" : "EconomicPolicyUncertainty",
+    "INFECTDISEMVTRACKD": "InfectiousDiseaseTracker"
+
+
+}
+
+
+
 
 
 # https://fred.stlouisfed.org/categories/32455

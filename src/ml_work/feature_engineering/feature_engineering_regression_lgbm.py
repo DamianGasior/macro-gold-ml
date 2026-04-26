@@ -20,6 +20,7 @@ from src.pipeline.utils import (
     CPI,
     CRYPTOS,
     DXY,
+    ECONOMIC_SENTIMENT
 )
 
 
@@ -38,6 +39,8 @@ class FeatureRegressionEngineeringLGBMR:
         self._df=self.dataframe_join_builder(dataframe_dxy,df)
 
         self._df=self.basic_metrics( VIX_SYMBOLS, ETF,COMM, DXY,BASE_UNDERLYING)
+        self._df=self.basic_metrics2( ECONOMIC_SENTIMENT)
+
         # self.z_score(20, ETF, COMM,DXY,BASE_UNDERLYING)     # does not work well for 
         # self._df=self.dataframe_join_builder(self._df,z_score)
 
@@ -63,6 +66,7 @@ class FeatureRegressionEngineeringLGBMR:
             for symbol in arg.values():
 
                 shifted_price=self._df[symbol].shift(1)
+
                 self._df[f"{symbol}_return"] = shifted_price.pct_change()
                 self._df[f"{symbol}_return_5"] = shifted_price.pct_change(5)
                 self._df[f"{symbol}_return_10"] = shifted_price.pct_change(10)
@@ -70,7 +74,7 @@ class FeatureRegressionEngineeringLGBMR:
                 self._df[f"{symbol}_return_30"] = shifted_price.pct_change(30)
 
                 #mean_reversion, where the price stands to the n rolling(n).mean
-                self._df[f"{symbol}_mean_revr_10"] = (shifted_price / shifted_price.rolling(10).mean())
+                # self._df[f"{symbol}_mean_revr_10"] = (shifted_price / shifted_price.rolling(10).mean())
                 # self._df[f"{symbol}_mean_revr_20"] = (shifted_price / shifted_price.rolling(20).mean())
                 # self._df[f"{symbol}_mean_revr_30"] = (shifted_price / shifted_price.rolling(30).mean())
                          
@@ -81,9 +85,11 @@ class FeatureRegressionEngineeringLGBMR:
                 self._df[f"{symbol}_vol_30"] = return_1.rolling(30).std()
                 
                 #price / rolling average , if >0 , price is above average = uptrend ; if <0 , price is below average = downtrend
-                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.pct_change(20).mean()
-                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.pct_change(20).mean()
-                self._df[f"{symbol}_trend_regime_30"]=shifted_price/shifted_price.pct_change(30).mean()
+                self._df[f"{symbol}_trend_regime_10"]=shifted_price/shifted_price.rolling(10).mean()
+
+                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.rolling(20).mean()
+                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.rolling(20).mean()
+                self._df[f"{symbol}_trend_regime_30"]=shifted_price/shifted_price.rolling(30).mean()
 
                 #mean_reversion, where the price stands to the n rolling(n).mean
                 # self._df[f"{symbol}_mean_norm_10"] = (shifted_price - shifted_price.rolling(10).mean())/shifted_price.rolling(10).std()
@@ -110,8 +116,47 @@ class FeatureRegressionEngineeringLGBMR:
         # the below does not work well for classfication model
         # shifted_spy=self._df['SPY'].shift(1)
         # self._df[f"SPY_risk_on_20"] = shifted_spy / shifted_spy.rolling(20).mean()
+        inf_count = np.isinf(self._df).sum()
+        print(inf_count[inf_count > 0])
+        inf_count2 = np.isnan(self._df).sum()
+        print(inf_count2[inf_count2 > 0])
+        self._df = self._df.replace([np.inf, -np.inf], np.nan)
+
         
         return self._df
+    
+    def basic_metrics2(self, *args):
+        # dataframe=dataframe_input.copy()
+        print(self._df.columns)
+        self._df = self._df.sort_index()
+        for arg in args:
+            for symbol in arg.values():
+
+                shifted_price=self._df[symbol].shift(1)
+
+                #mean_reversion, where the price stands to the n rolling(n).mean
+                self._df[f"{symbol}_mean_roll_10"] = shifted_price.rolling(10).mean()
+                self._df[f"{symbol}_mean_roll_20"] = shifted_price.rolling(20).mean()
+                self._df[f"{symbol}_mean_roll_30"] = shifted_price.rolling(30).mean()
+                         
+                #volatility is measured on returns
+
+                
+                #price / rolling average , if >0 , price is above average = uptrend ; if <0 , price is below average = downtrend
+                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.rolling(20).mean()
+                self._df[f"{symbol}_trend_regime_20"]=shifted_price/shifted_price.rolling(20).mean()
+                self._df[f"{symbol}_trend_regime_30"]=shifted_price/shifted_price.rolling(30).mean()
+
+      
+        inf_count = np.isinf(self._df).sum()
+        print(inf_count[inf_count > 0])
+        inf_count2 = np.isnan(self._df).sum()
+        print(inf_count2[inf_count2 > 0])
+        self._df = self._df.replace([np.inf, -np.inf], np.nan)
+
+        
+        return self._df
+
 
     def z_score(self, rolling_window, *args):
         """

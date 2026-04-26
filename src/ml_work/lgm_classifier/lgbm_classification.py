@@ -1,5 +1,6 @@
 import logging
 import os
+import shap
 from src.pipeline import utils
 from src.api_providers.common_df_merger.multiple_dataframe_transformer import (
     Multiple_df_manager,
@@ -9,8 +10,8 @@ from sklearn.metrics import log_loss, roc_auc_score
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import lightgbm
 from lightgbm import LGBMRegressor, LGBMClassifier
+from src.ml_work.reports.report_summary import Report_Summary
 
 from src.pipeline.utils import (
     SYMBOL_MAPPINGS,
@@ -58,6 +59,24 @@ current_dir = os.path.dirname(__file__)
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
+# ============================================================================
+# Model Configuration Constants
+# ============================================================================
+
+# Return calculation parameters (in days)
+RETURN_LOOKBACK = 10  # 10-day returns for target calculation
+RETURN_FORWARD = 10   # 10-day forward-looking returns for backtesting
+
+# Backtesting parameters
+PROBABILITY_THRESHOLD = 0.70  # 80th percentile for trade signal
+EDGE_QUANTILE = 0.70          # 85th percentile for edge calculation
+
+# Data segment analysis
+TOP_BOTTOM_PERCENTILE = 0.3  # Top/bottom 30% segmentsDataFrame()
+
+
+
+
 class LGBMClassifier_model:
     """
     LGBM Classification model for predicting GOLD price movements.
@@ -89,6 +108,7 @@ class LGBMClassifier_model:
         self._proba_test: np.ndarray | None = None
         self._y_pred: np.ndarray | None = None
         self._lgbm_model: LGBMClassifier | None = None
+        
 
     @property
     def return_combined_dataframe(self) -> pd.DataFrame:
@@ -97,6 +117,10 @@ class LGBMClassifier_model:
     @property
     def return_X_train(self):
         return self._X_train
+    
+    @property
+    def return_X_test(self):
+        return self._X_test
 
     @property
     def return_y_train(self):
@@ -138,8 +162,8 @@ class LGBMClassifier_model:
         )
 
         future_return = self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
-        future_return_top = future_return.quantile(0.7)
-        future_return_bottom = future_return.quantile(0.3)
+        future_return_top = future_return.quantile(1-TOP_BOTTOM_PERCENTILE)
+        future_return_bottom = future_return.quantile(TOP_BOTTOM_PERCENTILE)
 
         # for longs and shorts
         # self._combined_dataframe["target"] = np.where(future_return >= future_return_top, 1,
@@ -251,8 +275,27 @@ class LGBMClassifier_model:
         # self._y_pred = np.where(self._proba_test[:,1] > self._proba_test[:,0], 1, -1) # for longs and shorts
 
         # # for longs only
-        thr = np.quantile(self._proba_test, 0.80)
+        thr = np.quantile(self._proba_test, PROBABILITY_THRESHOLD)
         self._y_pred = np.where(self._proba_test >= thr, 1, 0)
+
+    def shap_evaluation(self,count=1):
+        explainer = shap.TreeExplainer(self._lgbm_model) # creating an instance of class TreeExplainer, which will be used in the line below to calculate the impact
+        shap_values = explainer.shap_values(self._X_test)
+         # for each row and feature its being calculated how much an impact it was on the decisions model
+        
+        print(type(shap_values))
+        print(shap_values.shape)
+        shap.summary_plot(
+            shap_values,
+            self._X_test,
+            show=False # I do not want to see it immeadiately, it will be saved
+            )
+        
+        first_date, latest_date = self.start_end_date_def()
+        path = os.path.join(current_dir, f"shap_summary_{count}_{first_date}_{latest_date}.jpg")
+        plt.savefig(path, bbox_inches="tight")
+        plt.close()
+
 
     def backtest_strategy(self):
         """
@@ -269,28 +312,27 @@ class LGBMClassifier_model:
         logger.debug(f"self._proba_test mint is :\n{self._proba_test.min()} and max is {self._proba_test.max()}")
 
 
-        logger.debug(f"Last 20 probability edges:\n{self._combined_dataframe['prob_long'].tail(20)}")
+        # logger.debug(f"Last 20 probability edges:\n{self._combined_dataframe['prob_long'].tail(20)}")
         self._combined_dataframe["trade_signal"] = np.nan
    
         # taking the top 30 % of best singals
         self._combined_dataframe.loc[self._X_test.index, "trade_signal"] = (self._combined_dataframe.loc[self._X_test.index, "prob_long"].rank(pct=True).ge(0.7).astype(int))
 
-        logger.debug(f"Last 20 trade signals:\n{self._combined_dataframe['trade_signal'].tail(20)}")
-        logger.info(f"Trade signal value counts:\n{self._combined_dataframe['trade_signal'].value_counts()}")
+        # logger.info(f"Last 20 trade signals:\n{self._combined_dataframe['trade_signal'].tail(20)}")
 
         self._combined_dataframe["strategy_return"] = self._combined_dataframe[
             "trade_signal"
         ].fillna(0) * self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
         bt = self._combined_dataframe.dropna(subset=["strategy_return"]).copy()
         self._bt=bt
-        logger.debug(f"Backtest dataframe:\n{self._bt}")
+        # logger.debug(f"Backtest dataframe:\n{self._bt}")
 
         self._bt["equity_curve"] = (1 + self._bt["strategy_return"]).cumprod()
-        logger.debug(f"Equity curve:\n{self._bt['equity_curve']}")
+        # logger.debug(f"Equity curve:\n{self._bt['equity_curve']}")
 
         returns = self._bt["strategy_return"].dropna()
-        logger.debug(f"Strategy returns:\n{self._bt['strategy_return']}")
-        logger.debug(f"Strategy returns value counts:\n{self._bt['strategy_return'].value_counts()}")
+        # logger.debug(f"Strategy returns:\n{self._bt['strategy_return']}")
+        # logger.debug(f"Strategy returns value counts:\n{self._bt['strategy_return'].value_counts()}")
         sharpe = (returns.mean() / returns.std()) * np.sqrt(252)
         logger.info(f"Sharpe ratio (annualized): {sharpe}")
 
@@ -306,7 +348,7 @@ class LGBMClassifier_model:
         sharpe_roll = (
             returns.rolling(rolling_sh_feat).mean() / returns.rolling(rolling_sh_feat).std()
         ).dropna()
-        logger.info(f"Rolling sharpe ratio (window={rolling_sh_feat}):\n{sharpe_roll}")
+        # logger.info(f"Rolling sharpe ratio (window={rolling_sh_feat}):\n{sharpe_roll}")
 
         return self._bt
 
@@ -317,6 +359,7 @@ class LGBMClassifier_model:
         Computes CAGR, drawdown, return statistics, P&L by position,
         hit rate, and buy-and-hold comparison metrics.
         """
+        logger.info(f"Information below are for the strategy from model : {type(self._lgbm_model).__name__} ")
         financial_metrics.calculate_cagr(self._bt, "equity_curve")
         financial_metrics.drawdown_from_peak(self._bt, "equity_curve")
         financial_metrics.return_std(self._bt, "strategy_return")
@@ -324,17 +367,24 @@ class LGBMClassifier_model:
         pnl_long = self._bt[self._bt["trade_signal"] == 1][
             "strategy_return"
         ].mean()
+
+   
         # pnl_short = self._bt[self._combined_dataframe["position"] == -1][
         #     "strategy_return"
         # ].mean()
-        hit_rate = (self._bt["strategy_return"] > 0).mean()
+
+        financial_metrics.dates_numbers(self._bt, "trade_signal")
+
+        # hit_rate = (self._bt["strategy_return"] > 0).mean()
         average_trade_return = self._bt["strategy_return"].mean()
+
 
         logger.info(f"PnL Long: {pnl_long}")
         # logger.info(f"PnL Short: {pnl_short}")
-        logger.info(f"Hit Rate: {hit_rate}")
+        # logger.info(f"Hit Rate: {hit_rate}")
         logger.info(f"Average Trade Return: {average_trade_return}")
 
+        logger.info(f"Information below are for  BUY and HOLD approach")
         financial_metrics.buy_and_hold_strateg(self._bt, "GOLD")
         financial_metrics.calculate_cagr(self._bt, "GOLD")
         financial_metrics.drawdown_from_peak(self._bt, "GOLD")
@@ -348,7 +398,7 @@ class LGBMClassifier_model:
         in the current directory.
         """
         plt.figure(figsize=(12, 6))
-        self._combined_dataframe["equity_curve"].plot()
+        self._bt["equity_curve"].plot()
         plt.title("Equity Curve")
         plt.xlabel("Date")
         plt.ylabel("Equity")
@@ -376,8 +426,8 @@ class LGBMClassifier_model:
         # sorted_prob = np.argsort(self._proba)
 
         sorted_prob = self._combined_dataframe["strategy_return"].sort_values()
-        logger.debug(f"Sorted probabilities:\n{sorted_prob}")
-        logger.debug(f"Sorted probabilities value counts:\n{sorted_prob.value_counts()}")
+        # logger.debug(f"Sorted probabilities:\n{sorted_prob}")
+        # logger.debug(f"Sorted probabilities value counts:\n{sorted_prob.value_counts()}")
 
         top_per_index = sorted_prob[-k:]
         bottom_per_index = sorted_prob[:k]
@@ -494,12 +544,12 @@ class LGBMClassifier_model:
         """
         tscv = TimeSeriesSplit(n_splits=5)
         count = 0
-        print("Start of the TimeSeriesSplit split : 5  ")
+        logger.debug("Start of the TimeSeriesSplit split : 5  ")
 
         for train_idx, test_idx in tscv.split(self._x):
             # print(f'count print {count}')
             count = count + 1
-            print(f"TimeSeriesSplit split : {count}")
+            logger.debug(f"TimeSeriesSplit split : {count}")
             # print(f'count print {count}')
 
             self._X_train, self._X_test = (
@@ -515,9 +565,11 @@ class LGBMClassifier_model:
             self.run_lgbm_classifier()
             self.backtest_strategy()
             self.evaluate_segments()
-            self.different_params_setup()
+            self.shap_evaluation(count)
+            # self.different_params_setup()
+            self.evaluating_backtest_strategy()
 
-        print("End of the TimeSeriesSplit")
+        logger.debug("End of the TimeSeriesSplit")
 
     def classification_model_pipeline(self,  feat_dataframe):
         """
@@ -537,18 +589,22 @@ class LGBMClassifier_model:
         self.backtest_strategy()
         # self.evaluate_segments()
         self.feature_importance()
-        # self.equity_curve_result()
+        self.equity_curve_result()
+        self.shap_evaluation()      
         # self.different_params_setup()
         self.evaluating_backtest_strategy()
-        # self.multiple_random_forest_combinations()
+        report = Report_Summary()
+        report.report_pipeline(1, self._X_test,cagr)
 
-    def regression_time_split_model_pipeline(self, feat_dataframe):
+
+    def classification_time_split_model_pipeline(self, feat_dataframe):
         """
         Execute classification pipeline with time series cross-validation.
         
         Args:
             feat_dataframe (pd.DataFrame): Feature dataframe for modeling
         """
+        feat_dataframe = utils.clean_features(feat_dataframe)
         self.combine_dataframes(feat_dataframe)
         self.pipeline_with_time_series_split()
         # self.feature_importnace()
@@ -558,6 +614,14 @@ class LGBMClassifier_model:
         # print(f'threshold_bottom : {threshold_bottom}')
         # # print(self._y_pred)
         # print(f'_y_pred : {self._y_pred[0]}')
+
+     
+        
+
+    def start_end_date_def(self):
+        first_date = self._X_test.index[0] # the oldest date of the datafrmae
+        latest_date = self._X_test.index[-1] # latest date of the dataframe
+        return first_date, latest_date
 
     @staticmethod
     def edge_method(proba):
@@ -578,7 +642,7 @@ class LGBMClassifier_model:
         # edge=prob_long-prob_short
 
         # short_quantile= np.quantile(edge,0.15)
-        long_quantile = np.quantile(prob_long, 0.85)
+        long_quantile = np.quantile(prob_long, EDGE_QUANTILE)
         logger.debug(f"long_quantile: {long_quantile}")
         logger.debug(f"probability long min is :\n{prob_long.min()} and max is {prob_long.max()} and quantile of 0,85 is ")
         return long_quantile
