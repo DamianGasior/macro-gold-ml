@@ -1,16 +1,5 @@
 from collections import deque
-from src.pipeline.utils import (
-    SYMBOL_MAPPINGS,BASE_UNDERLYING,
-    OTHER,
-    VIX_SYMBOLS,
-    CCY_SYMBOLS,
-    RATES,
-    REAL_YIELDS,
-    ETF,
-    RATE_DIFF,
-    INFL_EXP,
-    CPI,CRYPTOS
-)
+from src.pipeline.utils import SYMBOL_MAPPINGS
 
 import pandas as pd
 
@@ -21,18 +10,11 @@ from src.api_providers.fred.api_request_fred import Fred_request_api
 from src.api_providers.twelve_data.api_request_twelve_data import (
     Underlying_twelve_data_reuquest,
 )
-from src.ml_work.classification.random_forest_classification import Classification_model
 
-# from src.api_providers.stooq.api_request_stooq import Stooq_request_api
-from src.ml_work.feature_engineering.feature_engineering import FeatureEngineering
-from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import FeatureRegressionEngineeringLGBMR
-
-from src.ml_work.feature_engineering.feature_engineering_regression import FeatureRegressionEngineering
-from src.ml_work.regression.random_forest_regression import Regression_model
-from src.ml_work.lgbm_regressor.lgbm_regression import LGBMRegressor_model
+from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import (
+    FeatureRegressionEngineeringLGBMR,
+)
 from src.ml_work.lgm_classifier.lgbm_classification import LGBMClassifier_model
-
-
 from .base_api_request import BaseAPIProvider
 from .base_single_transformer import BaseDataTransformer
 
@@ -54,7 +36,7 @@ class DataPipeline:
         self.symbol = symbol
         self.dataframes_list = (
             dataframes_list or Multiple_df_manager()
-        )  # Value needs to be assinged to the variable , if its None it creates a new instance of  Multiple_df_manager()
+        )  # if None, creates a new Multiple_df_manager() instance
         self._assets_combined_dataframes = assets_combined_dataframes
         # self._merged_asssets_dataframe = merged_asssets_dataframe
 
@@ -92,7 +74,7 @@ class DataPipeline:
         self._assets_combined_dataframes = self.dataframes_list.multiple_df_manager_pipeline(
             self.data_transformer.to_dataframe()
         )
-        print('symbol_processing:',self.symbol)
+        print("symbol_processing:", self.symbol)
         self._assets_combined_dataframes = self.dataframes_list.return_df
         print(type(self._assets_combined_dataframes))
         print((self._assets_combined_dataframes.tail(10)))
@@ -100,7 +82,6 @@ class DataPipeline:
             self._assets_combined_dataframes, columns
         )
         return self._assets_combined_dataframes
-
 
     def run_pipeline(self):
 
@@ -112,13 +93,14 @@ class DataPipeline:
 
             symbol_fred_deque = deque(
                 [
-                           "DEXUSEU",
+                    "DEXUSEU",
                     # "DEXCHUS",
                     "DEXUSUK",
                     "DEXSZUS",
                     # "DEXHKUS",
                     "DEXJPUS",
-                    "DEXSDUS","DEXCAUS",
+                    "DEXSDUS",
+                    "DEXCAUS",
                     # "DGS10",
                     # "DGS5",
                     # "REAINTRATREARAT10Y",
@@ -138,9 +120,9 @@ class DataPipeline:
                     # "EXPINF1YR",
                     # "EXPINF2YR",
                     # "EXPINF5YR",
-                    # "EXPINF10YR"      ,    
-                    "USEPUINDXD" ,
-                    "INFECTDISEMVTRACKD"     
+                    # "EXPINF10YR"      ,
+                    "USEPUINDXD",
+                    "INFECTDISEMVTRACKD",
                 ]
             )
             fred_req = DataPipeline()
@@ -159,46 +141,40 @@ class DataPipeline:
         general_object.multiple_df_manager_pipeline(fred_req)
 
         df_final = general_object.return_df
-        # print(df_final.head(50))
-        # print(df_final.tail(50))
-
 
         # this feature_dataframe_regression is for both random forest models [regression and classification]
         # feature_dataframe_regression = FeatureRegressionEngineering()
         # feature_dataframe_regression.feature_enginerring_pipeline(df_final)
 
+        # commenting out during Classification model being turned on
 
-
-
-        # commenting out during Classification model being turned on 
-        
         # regression_datframe = Regression_model()
         # regression_datframe.regression_model_pipeline(
         #     df_final, feature_dataframe_regression.return_dataframe
         # )
 
-        # commenting out during Regreesion LGBMR is turned on 
+        # commenting out during Regreesion LGBMR is turned on
 
         # classification_dataframe=Classification_model()
         # classification_dataframe.classification_model_pipeline(
         #     df_final, feature_dataframe_regression.return_dataframe
         #     )
 
-
-        # this is purely for LGBM model 
+        # this is purely for LGBM model
         feature_dataframe_regression_lgbmr = FeatureRegressionEngineeringLGBMR()
         feature_dataframe_regression_lgbmr.feature_enginerring_pipeline(df_final)
 
         # regression_datframe_lgbmr = LGBMRegressor_model()
         # regression_datframe_lgbmr.regression_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
 
-
         classificaation_datframe_lgbmr = LGBMClassifier_model()
-        classificaation_datframe_lgbmr.classification_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
-        # classificaation_datframe_lgbmr.classification_time_split_model_pipeline( feature_dataframe_regression_lgbmr.return_dataframe)
+        classificaation_datframe_lgbmr.classification_model_pipeline(
+            feature_dataframe_regression_lgbmr.return_dataframe
+        )
+        # classificaation_datframe_lgbmr.classification_time_split_model_pipeline(
+        #     feature_dataframe_regression_lgbmr.return_dataframe
+        # )
 
-
-        
 
 def run_pipeline():
     return DataPipeline().run_pipeline()
