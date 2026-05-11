@@ -171,6 +171,7 @@ class DataPipeline:
         classificaation_datframe_lgbmr.classification_model_pipeline(
             feature_dataframe_regression_lgbmr.return_dataframe
         )
+        classificaation_datframe_lgbmr.save_model()
         # classificaation_datframe_lgbmr.classification_time_split_model_pipeline(
         #     feature_dataframe_regression_lgbmr.return_dataframe
         # )

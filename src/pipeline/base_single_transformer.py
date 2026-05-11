@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class BaseDataTransformer(ABC):
-  
 
     @abstractmethod
     def to_dataframe(self):

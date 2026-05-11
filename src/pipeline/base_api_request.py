@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 class BaseAPIProvider(ABC):
     def __init__(self, symbol: str):
         self.symbol = symbol
+
     # in the class __init__
     # include parametres required  by the api provider, like symbol, interval, api_key , etc
 

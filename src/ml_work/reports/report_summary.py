@@ -15,29 +15,26 @@ class Report_Summary:
 
     def __init__(self):
         self._summarized_results = pd.DataFrame()
+        # self._format_config = {
+        #     "cagr": "{:.2%}",
+        #     "drawdown": "{:.2%}",
+        #     "vol_annual": "{:.2%}",
+        #     "sharpe": "{:.4f}"
+        # }
 
     @property
     def return_summarized_results(self):
         return self._summarized_results
 
-    def add_start_end_date(self, count, data_file):
-        first_date = data_file.index[0]
-        latest_date = data_file.index[-1]
-
-        new_row = pd.DataFrame(
-            {"split": [count], "start_date": [first_date], "send_date": [latest_date]}
-        )
-
-        self._summarized_results = pd.concat([self._summarized_results, new_row], ignore_index=True)
-
-        print(self._summarized_results.head(10))
+    def show_report(self):
         return self._summarized_results
 
-    # def start_end_date_def(self,data_file):
-    #     first_date = data_file[1]
-    #      # the oldest date of the datafrmae
-    #     latest_date = data_file[-1] # latest date of the dataframe
-    #     return first_date, latest_date
+    def add_to_df(self, incoming_dict):
+        if self._summarized_results.empty:
+            self._summarized_results = pd.DataFrame([incoming_dict])
+        else:
+            self._summarized_results.loc[len(self._summarized_results)] = incoming_dict
 
-    def report_pipeline(self, count, data_file):
-        self.add_start_end_date(count, data_file)
+    def report_pipeline(self, incoming_dict):
+        # self.add_start_end_date(count, data_file)
+        self.add_to_df(incoming_dict)

@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 120
+ignore =
+    E501,
+    W503,
+per-file-ignores =
+    src/ml_work/*:F401,F811,E402,F841,F541,W291,W293
+    src/api_providers/*:F401,E501
+    src/pipeline/*:F401

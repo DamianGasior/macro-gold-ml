@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+demo_cache.sqlite
+pages/
+*.md
+CLAUDE.md
+claude_ai_engineer_checklist.md
+git_commands.draft.md

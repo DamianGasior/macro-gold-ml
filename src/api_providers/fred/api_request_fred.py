@@ -6,13 +6,11 @@ from requests_cache import CachedSession
 import time
 from .single_transformation_fred import Data_fred_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
-session = CachedSession('demo_cache', backend='sqlite', expire_after=7200)
+
+session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 
-
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 API_KEY = "fbdae593317d45162a3c4a3ebc6a74ec"
@@ -26,9 +24,9 @@ def api_request_cached(parameters):
     resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
     print(resp)
     return {
-        "from_cache" : getattr(resp, "from_cache", False),
+        "from_cache": getattr(resp, "from_cache", False),
         "data": resp.json(),
-        "status_code": resp.status_code
+        "status_code": resp.status_code,
     }
 
 
@@ -72,16 +70,14 @@ class Fred_request_api(BaseAPIProvider):
             return response
 
         except requests.RequestException as e:
-            raise Exception(
-                f"Transport erorr{e}"
-            )  # thanks to that we will get one f-string , ane
+            raise Exception(f"Transport erorr{e}")  # thanks to that we will get one f-string , ane
             # will be not getting this error :
             # TypeError: AlertMixin.error() takes 2 positional arguments but 3 were given
             # when it would implemented like this : st.error("Error occured", e)
 
     def execute_full_request(self):
         logging.info("request_executed_to_fred")
-        response = self.api_request()  
+        response = self.api_request()
         # print(type(response))
         return response
 
@@ -97,7 +93,7 @@ class Fred_request_api(BaseAPIProvider):
         # print('druk metody to_dict')
         response = self.api_request()
         data = response["observations"]
-        return {"symbol": self.symbol , "quotes": data}
+        return {"symbol": self.symbol, "quotes": data}
 
 
 # test_request = Fred_request_api("DGS10")

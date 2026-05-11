@@ -11,11 +11,13 @@ class Data_fred_transformation(BaseDataTransformer):
         self.symbol = symbol
         self.dataframe = pd.DataFrame()
         self.date_index_max: pd.Timestamp | None = None
-        self.date_index_min_max_symbol = {} # zrobic z tego liste globalna, tak by moc potem sprawdzic co i jak 
+        self.date_index_min_max_symbol = (
+            {}
+        )  # zrobic z tego liste globalna, tak by moc potem sprawdzic co i jak
 
     # dodac dict ( gdzie beda zapisywane wszedize max   i min daty dla danego symbolu )
 
-    # pierw zrivuc return property i dac print , zoabczycmy co wyjdzie 
+    # pierw zrivuc return property i dac print , zoabczycmy co wyjdzie
 
     def to_dataframe(self):
         dataframe = pd.DataFrame(self.api_response)
@@ -78,7 +80,7 @@ class Data_fred_transformation(BaseDataTransformer):
 
         print(self.date_index_min_max_symbol)
 
-        dataframe_normalized=Multiple_df_manager.normalize_df(dataframe)
+        dataframe_normalized = Multiple_df_manager.normalize_df(dataframe)
         self.dataframe = dataframe_normalized
 
         return self.dataframe

@@ -2,5 +2,19 @@
 line-length = 100
 select = ["E", "F", "I"]
 fix = true
+
 [tool.black]
 line-length = 100
+
+[tool.flake8]
+max-line-length = 120
+ignore = [
+    "E501",   # line too long — egzekwowane przez black, nie potrzebujemy duplikatu
+    "W503",   # line break before binary operator — styl, nie błąd
+    "F841",   # local variable assigned but never used — do naprawienia stopniowo
+]
+per-file-ignores = [
+    "src/ml_work/*:F401",       # unused imports w starym kodzie ML — do naprawienia stopniowo
+    "src/api_providers/*:F401", # unused imports w starym kodzie API providers
+    "src/pipeline/*:F401",      # unused imports w pipeline
+]

@@ -12,13 +12,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import lightgbm
+
 print("lightgbm path:", lightgbm.__file__)
 
 from lightgbm import LGBMRegressor
+
 print("LGBMRegressor:", LGBMRegressor)
 
 from src.pipeline.utils import (
-    SYMBOL_MAPPINGS,BASE_UNDERLYING,
+    SYMBOL_MAPPINGS,
+    BASE_UNDERLYING,
     OTHER,
     VIX_SYMBOLS,
     CCY_SYMBOLS,
@@ -27,9 +30,9 @@ from src.pipeline.utils import (
     ETF,
     RATE_DIFF,
     INFL_EXP,
-    CPI,CRYPTOS
+    CPI,
+    CRYPTOS,
 )
-
 
 pd.set_option("display.max_rows", 200)  # więcej niż 150
 pd.set_option("display.max_columns", None)  # wszystkie kolumny
@@ -98,27 +101,32 @@ class LGBMRegressor_model:
 
         feature_df_normalized = Multiple_df_manager.normalize_df(feature_df)
         print(feature_df_normalized.columns)
-        self._combined_dataframe=feature_df_normalized
+        self._combined_dataframe = feature_df_normalized
         logging.debug(self._combined_dataframe.head(14))
         self._combined_dataframe = self._combined_dataframe.sort_index()
-        print('lenght of the dataframe before applying dropna():',len(self._combined_dataframe))
-        
+        print("lenght of the dataframe before applying dropna():", len(self._combined_dataframe))
+
         future_return = self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
         target = pd.qcut(future_return, 5, labels=False)
         print(target)
         self._combined_dataframe["target"] = target
         print(self._combined_dataframe["target"].head())
 
-        self._combined_dataframe = self._combined_dataframe.dropna(subset=["target",])  # removing only those rows where target and 'target_pct' is NaN
-        print('sum of na including features : \n',self._combined_dataframe.isna().sum())
-        print('sum of na in target column : ',self._combined_dataframe["target"].dropna())
+        self._combined_dataframe = self._combined_dataframe.dropna(
+            subset=[
+                "target",
+            ]
+        )  # removing only those rows where target and 'target_pct' is NaN
+        print("sum of na including features : \n", self._combined_dataframe.isna().sum())
+        print("sum of na in target column : ", self._combined_dataframe["target"].dropna())
 
-        self._x = self._combined_dataframe.drop(columns=["target", "GOLD"])  # droppoing the selected columns, matrix with features
+        self._x = self._combined_dataframe.drop(
+            columns=["target", "GOLD"]
+        )  # droppoing the selected columns, matrix with features
         self._y = self._combined_dataframe["target"]  # leaving selected columns df with target
 
-        print('shape of X : ',self._x.shape)
-        print('shape of y : ',self._y.shape)
-
+        print("shape of X : ", self._x.shape)
+        print("shape of y : ", self._y.shape)
 
         print(self._combined_dataframe[["target", "GOLD"]].tail(50))
         assert self._x.index.equals(self._y.index)
@@ -127,7 +135,7 @@ class LGBMRegressor_model:
     def feature_importnace(self):
 
         importance = self._lgbm_model.feature_importances_
-        print('feature_importances_',self._lgbm_model.feature_importances_)
+        print("feature_importances_", self._lgbm_model.feature_importances_)
         df_imp = pd.DataFrame(
             {"feature": self._X_train.columns, "importance": importance}
         ).sort_values(by="importance", ascending=False)
@@ -145,7 +153,7 @@ class LGBMRegressor_model:
         model = LGBMRegressor(
             n_estimators=300,  # liczba drzew
             max_depth=3,  # płytkie drzewa = mniej overfittingu
-            num_leaves=15, 
+            num_leaves=15,
             learning_rate=0.05,
             random_state=42,
             n_jobs=-1,
@@ -192,13 +200,17 @@ class LGBMRegressor_model:
         threshold_bottom = self._combined_dataframe.loc[mask, "predicted_signal"].quantile(0.3)
 
         self._combined_dataframe["position"] = 0  # assigning by default all values to 0
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] > threshold_top ),'position'] = 1
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] < threshold_bottom ),'position'] = -1
+        self._combined_dataframe.loc[
+            mask & (self._combined_dataframe["predicted_signal"] > threshold_top), "position"
+        ] = 1
+        self._combined_dataframe.loc[
+            mask & (self._combined_dataframe["predicted_signal"] < threshold_bottom), "position"
+        ] = -1
 
- 
-        years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
+        years = (
+            self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
+        )
         print(years)
-  
 
         # print(self._combined_dataframe["predicted_signal"].describe())
         # print(self._combined_dataframe["predicted_signal"].isna().sum())
@@ -224,47 +236,43 @@ class LGBMRegressor_model:
             self._combined_dataframe["strategy_return"] != 0
         )
 
-       
-
         # print(self._combined_dataframe.loc[mask_return, "strategy_return"].head(150))
         # print("sum", self._combined_dataframe.loc[mask_return, "strategy_return"].sum())
 
-       
-        returns=self._combined_dataframe["strategy_return"].dropna()
+        returns = self._combined_dataframe["strategy_return"].dropna()
 
-        sharpe = ((returns.mean()/returns.std())*np.sqrt(252))
-        print('Share ratio (annualized) is : ' , sharpe)
+        sharpe = (returns.mean() / returns.std()) * np.sqrt(252)
+        print("Share ratio (annualized) is : ", sharpe)
 
+        retunrs_non_zero = returns[returns != 0].dropna()
 
-        retunrs_non_zero=returns[returns !=0].dropna()
-
-
-        n_trades=len(retunrs_non_zero)
-        print(f'\n number of returns higher than 0 : {retunrs_non_zero.count()}')
-        print('number of returns equla to 0 : ',(returns == 0).sum())
-        sharpe_non_zero_days = ((retunrs_non_zero.mean()/retunrs_non_zero.std())*np.sqrt(n_trades))/years
+        n_trades = len(retunrs_non_zero)
+        print(f"\n number of returns higher than 0 : {retunrs_non_zero.count()}")
+        print("number of returns equla to 0 : ", (returns == 0).sum())
+        sharpe_non_zero_days = (
+            (retunrs_non_zero.mean() / retunrs_non_zero.std()) * np.sqrt(n_trades)
+        ) / years
         # print(type(sharpe_non_zero_days))
-        print('Sharpe non zero ratio (considering trades) is : ' , sharpe_non_zero_days)
+        print("Sharpe non zero ratio (considering trades) is : ", sharpe_non_zero_days)
 
-
-        rolling_sh_feat=10
+        rolling_sh_feat = 10
         # print(returns.isna().sum())
-        sh_numerator= returns.rolling(rolling_sh_feat).mean().dropna()
-        sh_denominator=returns.rolling(rolling_sh_feat).std().dropna()
+        sh_numerator = returns.rolling(rolling_sh_feat).mean().dropna()
+        sh_denominator = returns.rolling(rolling_sh_feat).std().dropna()
         # print(sh_numerator.isna().sum())
         # print(sh_denominator.isna().sum())
 
-
-
-        sharpe_roll = (returns.rolling(rolling_sh_feat).mean()/returns.rolling(rolling_sh_feat).std()).dropna()
-        print(f'Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}')
+        sharpe_roll = (
+            returns.rolling(rolling_sh_feat).mean() / returns.rolling(rolling_sh_feat).std()
+        ).dropna()
+        print(f"Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}")
         # print(self._combined_dataframe['predicted_signal','strategy_return','equity_curve'].tail(20))
 
         return self._combined_dataframe
 
     def equity_curve_result(self):
         plt.figure(figsize=(12, 6))
-        self._combined_dataframe['equity_curve'].plot()
+        self._combined_dataframe["equity_curve"].plot()
         plt.title("Equity Curve")
         plt.xlabel("Date")
         plt.ylabel("Equity")
@@ -402,7 +410,7 @@ class LGBMRegressor_model:
             "max_features": ["sqrt"],
             "random_state": [42],
         }
-        rfst = RandomForestRegressor()
+        rfst = LGBMRegressor()
         tscv = TimeSeriesSplit(n_splits=5)
         grid = GridSearchCV(rfst, param_grid, cv=tscv, scoring="r2", n_jobs=-1)
 
@@ -455,10 +463,10 @@ class LGBMRegressor_model:
 
         print("End of the TimeSeriesSplit")
 
-    def regression_model_pipeline(self,  feat_dataframe):
+    def regression_model_pipeline(self, feat_dataframe):
         # raw_dataframe = utils.clean_features(raw_dataframe)
         feat_dataframe = utils.clean_features(feat_dataframe)
-        self.combine_dataframes( feat_dataframe)
+        self.combine_dataframes(feat_dataframe)
         self.set_train_test_split()
         self.run_lgmr_regressor()
         # self.backtest_strategy()
@@ -478,5 +486,3 @@ class LGBMRegressor_model:
         # print(f'threshold_bottom : {threshold_bottom}')
         # # print(self._y_pred)
         # print(f'_y_pred : {self._y_pred[0]}')
-
-

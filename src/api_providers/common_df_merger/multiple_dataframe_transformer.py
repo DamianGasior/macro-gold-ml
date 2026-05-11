@@ -17,8 +17,6 @@ class Multiple_df_manager:
         # self.concact_df=Multiple_df_manager.normalize_df(self.concact_df)
         assert self.concact_df.index.is_monotonic_increasing, "Index is not sorted!"
         return self.concact_df
-    
-
 
     def add_to_working_list(self, passed_df):
         # print(type(passed_df))
@@ -47,8 +45,10 @@ class Multiple_df_manager:
         df_list = []
         for df in args:
             df_list.append(df)
-        
-        self.concact_df = pd.concat(df_list, axis=1, join="inner")  # joining those dataframes which have the same dates
+
+        self.concact_df = pd.concat(
+            df_list, axis=1, join="inner"
+        )  # joining those dataframes which have the same dates
         return self.concact_df
 
     def return_list(self):
@@ -64,12 +64,12 @@ class Multiple_df_manager:
         print(df.head(10))
         print(df.tail(10))
         return df
-    
+
     @staticmethod
     def normalize_df(dataframe_received):
-        df=dataframe_received.copy()
-        df=df.sort_index()
+        df = dataframe_received.copy()
+        df = df.sort_index()
         df.index = pd.to_datetime(df.index)
-        df = df[~df.index.duplicated(keep="last")] # helps to avoid duplicates
+        df = df[~df.index.duplicated(keep="last")]  # helps to avoid duplicates
         assert df.index.is_monotonic_increasing, "Index is not sorted!"
         return df

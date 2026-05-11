@@ -11,7 +11,6 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-
 pd.set_option("display.max_rows", 200)  # więcej niż 150
 pd.set_option("display.max_columns", None)  # wszystkie kolumny
 pd.set_option("display.width", None)  # brak łamania linii
@@ -29,7 +28,6 @@ from sklearn.metrics import (
     root_mean_squared_error,
 )
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
-
 
 current_dir = os.path.dirname(__file__)
 
@@ -94,7 +92,6 @@ class Regression_model:
         print(self._combined_dataframe["target_pct"].describe())
 
         print(self._combined_dataframe["target_pct"].head())
-
 
         # q_low = future_return.quantile(0.3)
         # q_high = future_return.quantile(0.7)
@@ -191,13 +188,17 @@ class Regression_model:
         threshold_bottom = self._combined_dataframe.loc[mask, "predicted_signal"].quantile(0.3)
 
         self._combined_dataframe["position"] = 0  # assigning by default all values to 0
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] > threshold_top ),'position'] = 1
-        self._combined_dataframe.loc[mask & (self._combined_dataframe['predicted_signal'] < threshold_bottom ),'position'] = -1
+        self._combined_dataframe.loc[
+            mask & (self._combined_dataframe["predicted_signal"] > threshold_top), "position"
+        ] = 1
+        self._combined_dataframe.loc[
+            mask & (self._combined_dataframe["predicted_signal"] < threshold_bottom), "position"
+        ] = -1
 
- 
-        years=self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
+        years = (
+            self._combined_dataframe.index.max().year - self._combined_dataframe.index.min().year
+        )
         print(years)
-  
 
         # print(self._combined_dataframe["predicted_signal"].describe())
         # print(self._combined_dataframe["predicted_signal"].isna().sum())
@@ -223,47 +224,43 @@ class Regression_model:
             self._combined_dataframe["strategy_return"] != 0
         )
 
-       
-
         # print(self._combined_dataframe.loc[mask_return, "strategy_return"].head(150))
         # print("sum", self._combined_dataframe.loc[mask_return, "strategy_return"].sum())
 
-       
-        returns=self._combined_dataframe["strategy_return"].dropna()
+        returns = self._combined_dataframe["strategy_return"].dropna()
 
-        sharpe = ((returns.mean()/returns.std())*np.sqrt(252))
-        print('Share ratio (annualized) is : ' , sharpe)
+        sharpe = (returns.mean() / returns.std()) * np.sqrt(252)
+        print("Share ratio (annualized) is : ", sharpe)
 
+        retunrs_non_zero = returns[returns != 0].dropna()
 
-        retunrs_non_zero=returns[returns !=0].dropna()
-
-
-        n_trades=len(retunrs_non_zero)
-        print(f'\n number of returns higher than 0 : {retunrs_non_zero.count()}')
-        print('number of returns equla to 0 : ',(returns == 0).sum())
-        sharpe_non_zero_days = ((retunrs_non_zero.mean()/retunrs_non_zero.std())*np.sqrt(n_trades))/years
+        n_trades = len(retunrs_non_zero)
+        print(f"\n number of returns higher than 0 : {retunrs_non_zero.count()}")
+        print("number of returns equla to 0 : ", (returns == 0).sum())
+        sharpe_non_zero_days = (
+            (retunrs_non_zero.mean() / retunrs_non_zero.std()) * np.sqrt(n_trades)
+        ) / years
         # print(type(sharpe_non_zero_days))
-        print('Sharpe non zero ratio (considering trades) is : ' , sharpe_non_zero_days)
+        print("Sharpe non zero ratio (considering trades) is : ", sharpe_non_zero_days)
 
-
-        rolling_sh_feat=10
+        rolling_sh_feat = 10
         # print(returns.isna().sum())
-        sh_numerator= returns.rolling(rolling_sh_feat).mean().dropna()
-        sh_denominator=returns.rolling(rolling_sh_feat).std().dropna()
+        sh_numerator = returns.rolling(rolling_sh_feat).mean().dropna()
+        sh_denominator = returns.rolling(rolling_sh_feat).std().dropna()
         # print(sh_numerator.isna().sum())
         # print(sh_denominator.isna().sum())
 
-
-
-        sharpe_roll = (returns.rolling(rolling_sh_feat).mean()/returns.rolling(rolling_sh_feat).std()).dropna()
-        print(f'Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}')
+        sharpe_roll = (
+            returns.rolling(rolling_sh_feat).mean() / returns.rolling(rolling_sh_feat).std()
+        ).dropna()
+        print(f"Rolling sharpe  ratio of roll {rolling_sh_feat} is : {sharpe_roll}")
         # print(self._combined_dataframe['predicted_signal','strategy_return','equity_curve'].tail(20))
 
         return self._combined_dataframe
 
     def equity_curve_result(self):
         plt.figure(figsize=(12, 6))
-        self._combined_dataframe['equity_curve'].plot()
+        self._combined_dataframe["equity_curve"].plot()
         plt.title("Equity Curve")
         plt.xlabel("Date")
         plt.ylabel("Equity")
@@ -479,5 +476,3 @@ class Regression_model:
         # print(f'threshold_bottom : {threshold_bottom}')
         # # print(self._y_pred)
         # print(f'_y_pred : {self._y_pred[0]}')
-
-

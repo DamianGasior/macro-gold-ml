@@ -14,7 +14,8 @@ from src.pipeline.utils import (
     CCY_SYMBOLS,
     RATES,
     REAL_YIELDS,
-    ETF,COMM,
+    ETF,
+    COMM,
     RATE_DIFF,
     INFL_EXP,
     CPI,
@@ -33,10 +34,10 @@ class FeatureRegressionEngineering:
 
     def feature_enginerring_pipeline(self, dataframe):
         self.dxy_builder(dataframe)
-        self.basic_metrics(dataframe, VIX_SYMBOLS, ETF,COMM, DXY,BASE_UNDERLYING)
-        self.z_score(20, ETF, COMM,DXY,BASE_UNDERLYING)
+        self.basic_metrics(dataframe, VIX_SYMBOLS, ETF, COMM, DXY, BASE_UNDERLYING)
+        self.z_score(20, ETF, COMM, DXY, BASE_UNDERLYING)
         self.ratios(1, BASE_UNDERLYING, DXY)
-        self.asset_relations(DXY,ETF,VIX_SYMBOLS,COMM)
+        self.asset_relations(DXY, ETF, VIX_SYMBOLS, COMM)
         return self._df
 
     def basic_metrics(self, dataframe, *args):
@@ -101,7 +102,9 @@ class FeatureRegressionEngineering:
             for symbol in arg.values():
                 series = self._df[f"{symbol}_return_1"]
                 roll_std = series.rolling(rolling_window).std()
-                roll_std = roll_std.replace(0, np.nan) # in case of  0 replaced to 0, will be easier later to manange it and drop it from dataframe
+                roll_std = roll_std.replace(
+                    0, np.nan
+                )  # in case of  0 replaced to 0, will be easier later to manange it and drop it from dataframe
                 print(roll_std)
                 print(series)
 
@@ -121,17 +124,23 @@ class FeatureRegressionEngineering:
                     - self._df[f"{value}_return_{return_window}"]
                 )
             return self._df
-        
-    def asset_relations(self,dxy,etf,vix,comm):
+
+    def asset_relations(self, dxy, etf, vix, comm):
         for symbol_dxy, symbol_vix in product(dxy.values(), vix.values()):
-            self._df[f'{symbol_dxy}_x_{symbol_vix}']=self._df[f'{symbol_dxy}_return_10'] *self._df[f'{symbol_vix}_return_10']
-        
+            self._df[f"{symbol_dxy}_x_{symbol_vix}"] = (
+                self._df[f"{symbol_dxy}_return_10"] * self._df[f"{symbol_vix}_return_10"]
+            )
+
         for symbol_etf, symbol_vix in product(etf.values(), vix.values()):
-            self._df[f'{symbol_etf}_x_{symbol_vix}']=self._df[f'{symbol_etf}_return_10'] *self._df[f'{symbol_vix}_return_10']
-        
+            self._df[f"{symbol_etf}_x_{symbol_vix}"] = (
+                self._df[f"{symbol_etf}_return_10"] * self._df[f"{symbol_vix}_return_10"]
+            )
+
         for symbol_comm, symbol_dxy in product(comm.values(), dxy.values()):
-            self._df[f'{symbol_comm}_x_{symbol_dxy}']=self._df[f'{symbol_comm}_return_10'] *self._df[f'{symbol_dxy}_return_10']
-        
+            self._df[f"{symbol_comm}_x_{symbol_dxy}"] = (
+                self._df[f"{symbol_comm}_return_10"] * self._df[f"{symbol_dxy}_return_10"]
+            )
+
         return self._df
 
     # def correlation_betwee_instrumentss(self, return_window, roll_windonw, *args):
