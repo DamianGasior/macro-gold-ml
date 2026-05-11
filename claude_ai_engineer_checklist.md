@@ -41,8 +41,8 @@
 
 **Do odpytania za ~2-3 tygodnie:** pytanie 3 — dlaczego model poza funkcją endpointu. Też warto sprawdzić czy pamięta różnicę GET/POST przy bardziej złożonych przypadkach.
 
-**Ważna luka architektoniczna do uzupełnienia po Dockerze:**
-Obecny POST /predict wymaga 96 features od callera — niepraktyczne. Docelowo: GET /predict bez body, API samo fetchuje dane z Twelve Data + FRED, uruchamia feature engineering, zwraca predykcję.
+**Luka architektoniczna — naprawiona ✅ (2026-05-11):**
+POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchuje dane z Twelve Data + FRED, uruchamia feature engineering, zwraca predykcję. Dodano in-memory cache z TTL 12h (dane dzienne — nie ma sensu odpytywać API przy każdym requeście). Omówiono różnicę cache lokalnego vs Redis na Azure (wieloinstancyjność). Na 1 instancji kontenera in-memory cache działa poprawnie.
 
 ### Docker ⭐ PRIORYTET #2
 
