@@ -1,17 +1,21 @@
 from collections import deque
 from datetime import datetime, timedelta
-
+import logging
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from src.logging_config import setup_logging
 from pydantic import BaseModel
-
 from src.api_providers.common_df_merger.multiple_dataframe_transformer import Multiple_df_manager
 from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import (
     FeatureRegressionEngineeringLGBMR,
 )
 from src.pipeline.pipeline import DataPipeline
 from src.pipeline.utils import SYMBOL_MAPPINGS
+
+setup_logging()
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="Gold Prediction API",

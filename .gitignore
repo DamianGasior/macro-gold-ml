@@ -227,3 +227,9 @@ src/ml_work/lgm_classifier/equity_curve_summary/
 src/ml_work/lgm_classifier/shap_summary/
 *.png
 *.jpg
+
+# Ignore adding logs to git hub
+# app_logs/* - ignoruje wszystkie pliki w folderze
+app_logs/*
+# !app_logs/.gitkeep - ignoruje wszystkie pliki poza .gitkeep (folder trafi do repo)
+!app_logs/.gitkeep

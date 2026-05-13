@@ -7,11 +7,12 @@
 # )
 # from src.api_providers.fred.api_request_fred import Fred_request_api
 # from src.api_providers.stooq.api_request_stooq import Stooq_request_api
+from src.logging_config import setup_logging
 from src.pipeline.pipeline import run_pipeline
 
 
 def main():
-
+    setup_logging()
     run_pipeline()
 
 

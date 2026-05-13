@@ -1,17 +1,12 @@
 import requests
 import logging
-from flask import Flask
-from flask_caching import Cache
 from requests_cache import CachedSession
-import time
 from .single_transformation_fred import Data_fred_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
 
 session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
-
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-
+logger = logging.getLogger(__name__)
 
 API_KEY = "fbdae593317d45162a3c4a3ebc6a74ec"
 
@@ -63,9 +58,9 @@ class Fred_request_api(BaseAPIProvider):
             # print(type(resp))  # <class 'requests.models.Response'>
             # print(resp.get("data"))
             # print(type(response))
-            logging.info(f"Response type is : {resp.get("status_code")}")
-            logging.info(f"Response type is from cache: {resp.get("from_cache")}")
-            logging.debug(f"Response is : {resp.get("data")}")
+            logger.info(f"Response type is : {resp.get("status_code")}")
+            logger.info(f"Response type is from cache: {resp.get("from_cache")}")
+            logger.debug(f"Response is : {resp.get("data")}")
             response = resp.get("data")
             return response
 
@@ -76,7 +71,7 @@ class Fred_request_api(BaseAPIProvider):
             # when it would implemented like this : st.error("Error occured", e)
 
     def execute_full_request(self):
-        logging.info("request_executed_to_fred")
+        logger.info("request_executed_to_fred")
         response = self.api_request()
         # print(type(response))
         return response

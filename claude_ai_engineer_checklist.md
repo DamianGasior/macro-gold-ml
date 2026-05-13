@@ -13,6 +13,12 @@
 - [ ] OOP w Pythonie — klasy, dziedziczenie, `__init__`, `@property` (masz basics, utrwal na własnym kodzie)
 - [ ] Type hints — `def func(x: int) -> str:` (standard w każdym profesjonalnym repo)
 - [ ] Obsługa błędów — `try/except`, własne wyjątki, logowanie (`logging`)
+  - [ ] Hierarchia poziomów: DEBUG → INFO → WARNING → ERROR → CRITICAL ✅ (2026-05-13) — omówione, rozumie progi i filtrowanie
+  - [ ] `basicConfig(force=True)` vs `getLogger(__name__)` — kiedy co używać ✅ (2026-05-13) — pułapka z uvicorn/FastAPI nadpisującym root logger
+  - [x] `FileHandler` — zapis logów do pliku ✅ (2026-05-13) — `logging_config.py` napisany, dynamiczna nazwa pliku z datą CET, auto-tworzenie folderu `app_logs/`
+    - **Quiz 2026-05-13 — wynik 4/5:** ✅ datetime.now() vs utc ✅ brak timezone.cet ✅ Path.parent.parent ✅ FileExistsError przy mkdir ❌ literówka `exists_ok` zamiast `exist_ok`
+    - **Luka do zapamiętania:** `exist_ok` (nie `exists_ok`) + naive vs aware datetime
+  - [ ] Przeglądanie logów na zdalnym serwerze — SSH / PuTTY + `tail -f app.log`
 - [ ] Środowiska wirtualne — `venv` lub `conda`, rozumienie `requirements.txt` (już używasz)
 - [ ] Testy jednostkowe — `pytest`, testowanie funkcji ML (zero testów w projekcie — to luka)
 
@@ -106,6 +112,7 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 - [ ] Azure Blob Storage — przechowywanie danych / artefaktów modeli
 - [ ] Azure Functions — serverless trigger
 - [ ] Azure ML Studio — podstawy (nie musi być głębokie)
+- [ ] Azure Monitor / Application Insights — przeglądanie logów aplikacji w chmurze (odpowiednik `tail -f` na Azure)
 
 ### Monitoring ML (MLOps basics)
 

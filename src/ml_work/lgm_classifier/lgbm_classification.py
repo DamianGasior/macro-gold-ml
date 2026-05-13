@@ -29,12 +29,6 @@ from src.pipeline.utils import (
     CRYPTOS,
 )
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
-    force=True,
-)
-
 logger = logging.getLogger(__name__)
 
 pd.set_option("display.max_rows", 200)  # więcej niż 150
@@ -294,6 +288,7 @@ class LGBMClassifier_model:
 
         logger.info(f"Model zapisany: {output_dir}/lgbm_classifier.pkl")
         logger.info(f"Kolumny zapisane: {output_dir}/feature_columns.pkl")
+        logger.info(f"Kolumny zapisane to : {self._X_train.columns.tolist()}")
 
     def shap_evaluation(self, count=1):
         explainer = shap.TreeExplainer(

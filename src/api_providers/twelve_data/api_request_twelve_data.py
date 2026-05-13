@@ -9,8 +9,7 @@ from ...pipeline.base_api_request import BaseAPIProvider
 session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-logging.info("=== Modul api_request_twelve_data zaladowany ===")  # ← test
+logger = logging.getLogger(__name__)
 
 
 API_KEY = "cd8a73e98be740cca47f97db19df0301"
@@ -76,28 +75,28 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
                 raise Exception("Missing key 'data' in the api resposne from twelve data")
             # print(resp)
             # response = resp
-            logging.info(f"API response is recevied based on caches: {log_info}")
+            logger.info(f"API response is recevied based on caches: {log_info}")
             # print(type(response))  # <class 'dict'>
             # if resp.status_code == 200
             code = resp.get("code")
             message = resp.get("message")
             resp_status_code = response.get("status_code")
-            logging.info(f"Response type is : {resp_status_code}")
-            logging.debug(f"Response is : {resp}")
+            logger.info(f"Response type is : {resp_status_code}")
+            logger.debug(f"Response is : {resp}")
 
             if resp_status_code == 200:
                 # for success scenario
                 if "meta" in resp:
-                    logging.info(f"Request was executed succefully for symbol: {self.symbol}")
+                    logger.info(f"Request was executed succefully for symbol: {self.symbol}")
                     symbol_received = resp["meta"]["symbol"]
                     # st.session_state.success_symbols
                     if symbol_received:
-                        logging.info(f"""Data received for  symbol: {symbol_received}""")
+                        logger.info(f"""Data received for  symbol: {symbol_received}""")
                     return resp
 
                 # in case API will come back with an error
                 elif "code" in resp.keys():
-                    logging.info(f"Response type is : {code}. Response is {message}")
+                    logger.info(f"Response type is : {code}. Response is {message}")
                     raise Exception(f'Broker error  {resp.get("code")} : {resp.get("message")}')
                 else:
                     raise Exception(f"Unexpected response {resp}")
@@ -111,7 +110,7 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
             # when it would implemented like this : st.error("Error occured", e)
 
     def execute_full_request(self):
-        logging.info("request_executed_to_twelve_data")
+        logger.info("request_executed_to_twelve_data")
         response = self.api_request()  # blocking it to check the st.cache_Data
         # print(response)
         return response
