@@ -1,10 +1,6 @@
 import requests
 from requests_cache import CachedSession
 import logging
-from flask import Flask
-from flask_caching import Cache
-
-import time
 from .single_tranformation import Data_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
 
@@ -14,6 +10,7 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.info("=== Modul api_request_twelve_data zaladowany ===")  # ← test
 
 
 API_KEY = "cd8a73e98be740cca47f97db19df0301"
@@ -75,6 +72,8 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
             # print(type(resp))  # <class 'requests.models.Response'>
             log_info = response.get("from_cache")
             resp = response.get("data")
+            if resp is None:
+                raise Exception("Missing key 'data' in the api resposne from twelve data")
             # print(resp)
             # response = resp
             logging.info(f"API response is recevied based on caches: {log_info}")
@@ -102,6 +101,8 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
                     raise Exception(f'Broker error  {resp.get("code")} : {resp.get("message")}')
                 else:
                     raise Exception(f"Unexpected response {resp}")
+            else:
+                raise ConnectionError(f"Unexpected HTTP status {resp_status_code} from twelve_data")
 
         except requests.RequestException as e:
             raise Exception(f"Transport erorr{e}")  # thanks to that we will get one f-string , ane
