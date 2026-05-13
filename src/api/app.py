@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import logging
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from src.logging_config import setup_logging
 from pydantic import BaseModel
 from src.api_providers.common_df_merger.multiple_dataframe_transformer import Multiple_df_manager
@@ -30,9 +30,11 @@ try:
 except FileNotFoundError:
     raise RuntimeError("Nie znaleziono plików modelu. Uruchom najpierw pipeline treningowy.")
 
-
-class PredictRequest(BaseModel):
-    asset_name: str
+# Below Was used in the POST endpoint, leaving it here, might be reused in the future
+# together with the method @app.post("/predict", response_model=PredictResponse)
+# def predict(request: PredictRequest):
+# class PredictRequest(BaseModel):
+#     asset_name: str
 
 
 class PredictResponse(BaseModel):
@@ -95,10 +97,27 @@ def health_check():
     return {"status": "ok", "message": "API działa poprawnie"}
 
 
-@app.post("/predict", response_model=PredictResponse)
-def predict(request: PredictRequest):
-    if request.asset_name.lower() != "gold":
-        raise HTTPException(status_code=400, detail="Required input needs to be: 'gold'")
+# Below is the implemention for POST, cam ne resued in the future, if required
+
+# @app.post("/predict", response_model=PredictResponse)
+# def predict(request: PredictRequest):
+#     if request.asset_name.lower() != "gold":
+#         raise HTTPException(status_code=400, detail="Required input needs to be: 'gold'")
+
+#     input_df = get_latest_features()
+#     probability = model.predict_proba(input_df)[:, 1][0]
+#     prediction = "long" if probability >= 0.70 else "no_trade"
+
+#     return PredictResponse(
+#         prediction=prediction,
+#         probability=round(float(probability), 4),
+#     )
+
+
+@app.get("/predict/gold", response_model=PredictResponse)
+def predict():
+    # if request.asset_name.lower() != "gold":
+    #     raise HTTPException(status_code=400, detail="Required input needs to be: 'gold'")
 
     input_df = get_latest_features()
     probability = model.predict_proba(input_df)[:, 1][0]
