@@ -3,12 +3,15 @@ import logging
 from requests_cache import CachedSession
 from .single_transformation_fred import Data_fred_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
+import os
+from dotenv import load_dotenv
 
 session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 logger = logging.getLogger(__name__)
 
-API_KEY = "fbdae593317d45162a3c4a3ebc6a74ec"
+load_dotenv()
+API_KEY = os.getenv("FRED_API_KEY")
 
 # dodac observation start i end date
 

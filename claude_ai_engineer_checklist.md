@@ -8,7 +8,6 @@
 ## POZIOM 1 — FUNDAMENT (zrób to najpierw)
 *Bez tego nie przejdziesz rekrutacji technicznej*
 
-### Python & Inżynieria oprogramowania
 
 - [ ] OOP w Pythonie — klasy, dziedziczenie, `__init__`, `@property` (masz basics, utrwal na własnym kodzie)
 - [ ] Type hints — `def func(x: int) -> str:` (standard w każdym profesjonalnym repo)
@@ -67,7 +66,23 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 - docker-compose (gdy dodamy bazę danych lub więcej serwisów)
 - deploy image na Azure Container Registry
 
-**Następny krok:** deploy na Azure (Azure Container Registry → Azure Container Apps)
+**Następny krok:** GitHub Actions — auto-deploy po `git push`
+
+### Azure — Deploy ⭐ PRIORYTET #3
+
+- [x] Azure Container Instances (ACI) — deploy kontenera Docker ✅ (2026-05-13) — `gold-api` działa na ACI, `/health` i `/predict/gold` odpowiadają
+- [x] Docker Hub jako prywatny rejestr — push image + PAT do Azure ✅ (2026-05-13) — `damgas712/gold-api:latest`, image type: Private, `index.docker.io` jako login server
+- [ ] GitHub Actions — automatyczny deploy po `git push` (build → push → az container create)
+  - *Odpowiednik ręcznego: docker build → tag → push → az container delete/create*
+- [ ] Azure Blob Storage — zapis logów z kontenera
+  - *Logi w pliku `app_logs/` istnieją tylko w kontenerze — giną przy restarcie. Blob Storage = zewnętrzny, trwały dysk*
+- [ ] Azure Container Apps — scale-to-zero (tańsza alternatywa dla ACI)
+  - *ACI kosztuje ~$36/mies. 24/7, Container Apps zatrzymuje się gdy brak ruchu → $0 przy bezczynności*
+- [ ] Logi przez CLI — `az container logs --name gold-api --resource-group gold-api-rg` — podgląd logów działającego kontenera
+  - *Odpowiednik `tail -f app.log` ale dla kontenera na ACI — minimum, które masz pod ręką*
+  - *Wersja live: `az container logs --follow` — strumieniuje logi w czasie rzeczywistym*
+- [ ] Azure Monitor / Application Insights — centralne logi z kontenera w portalu Azure
+  - *Odpowiednik `tail -f app.log` ale w chmurze, z filtrowaniem i alertami*
 
 ---
 

@@ -3,6 +3,8 @@ from requests_cache import CachedSession
 import logging
 from .single_tranformation import Data_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
+import os
+from dotenv import load_dotenv
 
 # Global HTTP client with persistent caching (SQLite backend).
 # Caches responses for identical requests (same URL + params) for 2 hours
@@ -11,10 +13,10 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 logger = logging.getLogger(__name__)
 
-
-API_KEY = "cd8a73e98be740cca47f97db19df0301"
-
-# dodac poczatek i koniec daty
+load_dotenv()  # its loading all variables from .env into os.environ
+API_KEY = os.getenv(
+    "TWELVE_DATA_API_KEY"
+)  # picking up the right variable and taking the correct key
 
 
 def api_request_cached(parameters):

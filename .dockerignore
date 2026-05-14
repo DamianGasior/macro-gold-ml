@@ -9,3 +9,5 @@ pages/
 CLAUDE.md
 claude_ai_engineer_checklist.md
 git_commands.draft.md
+app_logs/*
+.env
