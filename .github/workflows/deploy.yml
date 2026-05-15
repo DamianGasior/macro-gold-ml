@@ -60,3 +60,11 @@ jobs:
             --environment-variables \
                 TWELVE_DATA_API_KEY=${{ secrets.TWELVE_DATA_API_KEY }} \
                 FRED_API_KEY=${{ secrets.FRED_API_KEY }}
+
+      # Krok 6: zatrzymaj kontener żeby nie nabijać kosztów (~$36/mies. 24/7)
+      # Aby ręcznie uruchomić: az container start --resource-group gold-api-rg --name gold-api-prediction-v2
+      - name: Stop ACI to save costs
+        run: |
+          az container stop \
+            --resource-group gold-api-rg \
+            --name gold-api-prediction-v2
