@@ -1,10 +1,18 @@
 # from src.pipeline.pipeline import DataPipeline
 import itertools
 from itertools import product
-
+import logging
 
 import numpy as np
 import pandas as pd
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
+    force=True,
+)
+
+logger = logging.getLogger(__name__)
 
 from src.pipeline.utils import (
     SYMBOL_MAPPINGS,
@@ -242,6 +250,8 @@ class FeatureRegressionEngineeringLGBMR:
 
     def dxy_builder(self, dataframe_raw):
         new_df_dxy = pd.DataFrame()
+        logger.debug(f"dataframe used in dxy_builder are: {dataframe_raw}")
+        logger.debug(f"dataframe type is : {type(dataframe_raw)}")
         new_df_dxy[f"DXY"] = (
             dataframe_raw["EUR_USD"] ** (-0.576)
             * dataframe_raw["USD_JPY"] ** (0.136)
@@ -250,6 +260,7 @@ class FeatureRegressionEngineeringLGBMR:
             * dataframe_raw["USD_SEK"] ** (-0.042)
             * dataframe_raw["USD_CHF"] ** (-0.036)
         )
+        logger.debug(f"new_df_dxy returned  in dxy_builder is: {new_df_dxy}")
         return new_df_dxy
 
     def dataframe_join_builder(self, df1, df2):

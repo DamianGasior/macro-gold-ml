@@ -3,7 +3,7 @@ import pandas as pd
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
     force=True,
 )
@@ -12,10 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_cagr(dataframe, column_name):
+    logger.debug(f"dataframe used in cagr are: {dataframe}")
+    logger.debug(f"dataframe type is : {type(dataframe)}")
     df = dataframe[column_name].dropna()
     trading_years = (df.index[-1] - df.index[0]).days / 365
     cagr = (df.iloc[-1] / df.iloc[0]) ** (1 / trading_years) - 1
-    logger.debug(f"CAGR (compoound annual growth range) : {cagr:.3%}")
+    logger.info(f"CAGR (compoound annual growth range) : {cagr:.3%}")
     print(cagr)
     return cagr
 
@@ -33,7 +35,7 @@ def buy_and_hold_strateg(dataframe, column_name):
     start_price = dataframe[column_name].iloc[0]
     end_price = dataframe[column_name].iloc[-1]
     buy_hold = end_price / start_price - 1
-    logger.debug(
+    logger.info(
         f"BUY and HOLD returns is  : {buy_hold:.3%}; basically your return starting from trade date at trade price till today(latest available data)"
     )
 
@@ -42,31 +44,33 @@ def return_std(dataframe, column_name):
     returns = dataframe[column_name]
     returns = returns.dropna()
     return_std = returns.std()
-    logger.debug(f"Stand deviation is {return_std:.3%}")
+    logger.info(f"Stand deviation is {return_std:.3%}")
     vol_annual = return_std * np.sqrt(252)
-    logger.debug(f"Vol_annual is {vol_annual:.3%}")
+    logger.info(f"Vol_annual is {vol_annual:.3%}")
     return vol_annual
 
 
 def sharpe_calc(returns, number_of_days):
+    logger.debug(f"Returns used in sharpe are: {returns}")
+    logger.debug(f"Returns type is : {type(returns)}")
     sharpe = (returns.mean() / returns.std()) * np.sqrt(number_of_days)
     return sharpe
 
 
 def trend_calc(dataframe, column_name, df_timeframe):
     dataframe = dataframe.reindex(df_timeframe.index)
-    print(dataframe[column_name])
+    logger.debug(dataframe[column_name])
     last = dataframe[column_name].iloc[-1]
-    print(last)
+    logger.debug(last)
     first = dataframe[column_name].iloc[0]
-    print(first)
+    logger.debug(first)
 
     if pd.isna(last):
         last = dataframe[column_name].dropna().iloc[-1]
 
-    print(last)
+    logger.debug(last)
     column_name_trend = last / first - 1
-    print(column_name_trend)
+    logger.debug(column_name_trend)
     return column_name_trend
 
 
@@ -77,18 +81,18 @@ def find_start_end_date(data_file):
 
 
 def dates_numbers(dataframe, column_name):
-    logger.debug(f"Number of na's: {dataframe[column_name].isna().sum()}")
-    logger.debug(f"First date of the reviewed dataframe: {dataframe[column_name].index[1]}")
-    logger.debug(f"Last date of the reviewed dataframe: {dataframe[column_name].index[-1]}")
-    logger.debug(
+    logger.info(f"Number of na's: {dataframe[column_name].isna().sum()}")
+    logger.info(f"First date of the reviewed dataframe: {dataframe[column_name].index[1]}")
+    logger.info(f"Last date of the reviewed dataframe: {dataframe[column_name].index[-1]}")
+    logger.info(
         f"First date to be considered as no trade or trade: {dataframe[column_name].first_valid_index()}"
     )
-    logger.debug(
+    logger.info(
         f"Last date to be considered as no trade or trade: {dataframe[column_name].last_valid_index()}"
     )
     counts2 = dataframe[column_name].value_counts()
     counts_true = counts2[1.0]
     counts_false = counts2[0.0]
-    logger.debug(
+    logger.info(
         f"Number of trades executed : {counts_true}. Number of trades not exeucted: {counts_false} (being below the threshold)"
     )
