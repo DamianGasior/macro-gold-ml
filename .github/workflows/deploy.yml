@@ -15,14 +15,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Krok 2: zaloguj się do Docker Hub żeby móc pushować image
+      # Krok 2: odpal testy jednostkowe — jeśli fail, pipeline się zatrzymuje
+      - name: Run unit tests
+        run: |
+          pip install -r requirements.txt --quiet
+          pytest tests/ -v
+
+      # Krok 3: zaloguj się do Docker Hub żeby móc pushować image
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PAT }}
 
-      # Krok 3: zbuduj image i pushuj na Docker Hub
+      # Krok 4: zbuduj image i pushuj na Docker Hub
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -30,13 +36,13 @@ jobs:
           push: true
           tags: damgas712/gold-api:latest
 
-      # Krok 4: zaloguj się do Azure używając service principal
+      # Krok 5: zaloguj się do Azure używając service principal
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Krok 5: usuń stary kontener i stwórz nowy z nowym image
+      # Krok 6: usuń stary kontener i stwórz nowy z nowym image
       - name: Redeploy ACI
         run: |
           az container delete \
@@ -61,7 +67,7 @@ jobs:
                 TWELVE_DATA_API_KEY=${{ secrets.TWELVE_DATA_API_KEY }} \
                 FRED_API_KEY=${{ secrets.FRED_API_KEY }}
 
-      # Krok 6: zatrzymaj kontener żeby nie nabijać kosztów (~$36/mies. 24/7)
+      # Krok 7: zatrzymaj kontener żeby nie nabijać kosztów (~$36/mies. 24/7)
       # Aby ręcznie uruchomić: az container start --resource-group gold-api-rg --name gold-api-prediction-v2
       - name: Stop ACI to save costs
         run: |
