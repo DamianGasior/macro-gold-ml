@@ -12,6 +12,7 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 load_dotenv()  # its loading all variables from .env into os.environ
 API_KEY = os.getenv(
@@ -75,8 +76,6 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
             resp = response.get("data")
             if resp is None:
                 raise Exception("Missing key 'data' in the api resposne from twelve data")
-            # print(resp)
-            # response = resp
             logger.info(f"API response is recevied based on caches: {log_info}")
             # print(type(response))  # <class 'dict'>
             # if resp.status_code == 200
@@ -118,8 +117,8 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
         return response
 
     def response_from_api(self, api_reponse):
-        print(type(api_reponse))
-        # print(api_reponse)
+        logger.info(f"api resposne type is : {type(api_reponse)}")
+        logger.info(f"Resposne from api is :{api_reponse}")
         symbol = self.symbol
         api_reponse = self.to_dict()
         api_reponse = api_reponse["quotes"]
@@ -127,16 +126,6 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
         return Data_transformation(api_reponse, symbol)
 
     def to_dict(self):
-        # print('druk metody to_dict')
         response = self.api_request()
         data = response["values"]
         return {"symbol": self.symbol, "quotes": data}
-
-    # def return_symbol(self,api_reponse):
-    #     symbol=api_reponse["meta"]["symbol"]
-    #     return symbol
-
-
-# USD_PLN = Underlying_twelve_data_reuquest("USD/PLN")
-
-# USD_PLN.execute_full_request()

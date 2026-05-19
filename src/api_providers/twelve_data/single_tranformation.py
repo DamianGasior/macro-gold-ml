@@ -3,6 +3,10 @@ from ...pipeline.base_single_transformer import BaseDataTransformer
 from src.api_providers.common_df_merger.multiple_dataframe_transformer import (
     Multiple_df_manager,
 )
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class Data_transformation(BaseDataTransformer):
@@ -13,19 +17,18 @@ class Data_transformation(BaseDataTransformer):
 
     def to_dataframe(self):
         dataframe = pd.DataFrame(self.api_response)
-        print(type(dataframe))
         dataframe["datetime"] = pd.to_datetime(
             dataframe["datetime"]
         )  # changing the datetime to type date time
         dataframe.set_index("datetime", inplace=True)  # setting datetime as index
-        print(dataframe.head(5000))
+        logger.debug(f"Head of the transfomred df is : {dataframe.head(10)}")
         dataframe = dataframe.filter(["close"])  # filtering by one column only
         dataframe.rename(columns={"close": self.symbol}, inplace=True)
         dataframe = dataframe.apply(
             pd.to_numeric, errors="coerce"
         )  # transform input data from the df to numeric values, if it can not be transfromed to numeric, then it popualted NaN
         dataframe = dataframe.dropna()  # it drops from the row above all NaN rows
-        print("symbol_processing:", self.symbol)
+        logger.debug("symbol_processing:", self.symbol)
         dataframe_normalized = Multiple_df_manager.normalize_df(dataframe)
         self.dataframe = dataframe_normalized
 

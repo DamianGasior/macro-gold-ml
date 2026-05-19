@@ -10,6 +10,9 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+
 load_dotenv()
 API_KEY = os.getenv("FRED_API_KEY")
 
@@ -20,7 +23,7 @@ def api_request_cached(parameters):
     url = "https://api.stlouisfed.org/fred/series/observations?"
     resp = session.get(url, params=parameters)
     resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
-    print(resp)
+    logger.debug(resp)
     return {
         "from_cache": getattr(resp, "from_cache", False),
         "data": resp.json(),
@@ -63,7 +66,7 @@ class Fred_request_api(BaseAPIProvider):
             # print(type(response))
             logger.info(f"Response type is : {resp.get("status_code")}")
             logger.info(f"Response type is from cache: {resp.get("from_cache")}")
-            logger.debug(f"Response is : {resp.get("data")}")
+            logger.info(f"Response is : {resp.get("data")}")
             response = resp.get("data")
             return response
 
@@ -76,12 +79,9 @@ class Fred_request_api(BaseAPIProvider):
     def execute_full_request(self):
         logger.info("request_executed_to_fred")
         response = self.api_request()
-        # print(type(response))
         return response
 
     def response_from_api(self, api_reponse):
-        # print(type(api_reponse))
-        # print(api_reponse)
         series_id = self.symbol
         api_reponse = self.to_dict()
         api_reponse = api_reponse["quotes"]
@@ -92,11 +92,3 @@ class Fred_request_api(BaseAPIProvider):
         response = self.api_request()
         data = response["observations"]
         return {"symbol": self.symbol, "quotes": data}
-
-
-# test_request = Fred_request_api("DGS10")
-# test_request.api_request()
-
-# https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=fbdae593317d45162a3c4a3ebc6a74ec&file_type=json
-
-# /home/damian/projekty/Python/macro-fx-ml/src/api_providers/fred/api_request_fred.py
