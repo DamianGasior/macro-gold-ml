@@ -12,7 +12,7 @@ from src.pipeline.pipeline import run_pipeline
 
 
 def main():
-    setup_logging()
+    setup_logging()  # by default its set to (level=logging.INFO)
     run_pipeline()
 
 

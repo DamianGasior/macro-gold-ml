@@ -12,7 +12,6 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 load_dotenv()  # its loading all variables from .env into os.environ
 API_KEY = os.getenv(

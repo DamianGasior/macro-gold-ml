@@ -2,12 +2,6 @@ import numpy as np
 import pandas as pd
 import logging
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
-    force=True,
-)
-
 logger = logging.getLogger(__name__)
 
 

@@ -6,12 +6,6 @@ import logging
 import numpy as np
 import pandas as pd
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
-    force=True,
-)
-
 logger = logging.getLogger(__name__)
 
 from src.pipeline.utils import (

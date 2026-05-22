@@ -52,8 +52,6 @@ from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_sp
 
 current_dir = os.path.dirname(__file__)
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 # ============================================================================
 # Model Configuration Constants

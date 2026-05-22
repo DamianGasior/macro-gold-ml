@@ -57,7 +57,7 @@ horizon = 21
 
 current_dir = os.path.dirname(__file__)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class LGBMRegressor_model:

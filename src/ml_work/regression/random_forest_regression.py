@@ -31,7 +31,7 @@ from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_sp
 
 current_dir = os.path.dirname(__file__)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class Regression_model:

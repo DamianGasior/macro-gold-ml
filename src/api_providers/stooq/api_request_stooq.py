@@ -5,8 +5,7 @@ from .single_transformation_stooq import Data_stooq_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
 from io import StringIO
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-
+logger = logging.getLogger(__name__)
 
 # this is not an  official api from stooq, we are just calling here a specific endpoint which provides us with a csv file in a response.
 

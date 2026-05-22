@@ -10,8 +10,6 @@ session = CachedSession("demo_cache", backend="sqlite", expire_after=7200)
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 load_dotenv()
 API_KEY = os.getenv("FRED_API_KEY")

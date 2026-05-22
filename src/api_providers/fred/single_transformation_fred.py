@@ -6,7 +6,6 @@ from src.api_providers.common_df_merger.multiple_dataframe_transformer import (
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class Data_fred_transformation(BaseDataTransformer):

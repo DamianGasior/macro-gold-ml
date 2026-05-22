@@ -15,7 +15,7 @@ LOG_PATH.parent.mkdir(
 )  # creates a new folder  if its not there; if there, no action
 
 
-def setup_logging():
+def setup_logging(level: int = logging.INFO):
     """
     Its enough for this method to be fired at the beginning of the process.
     Python does  save the  root logger config in global mmeory through the whole life of the process.
@@ -23,7 +23,7 @@ def setup_logging():
     and ingerith this config from root logger, without any import
     """
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=level,
         format="%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s",
         force=True,
         handlers=[

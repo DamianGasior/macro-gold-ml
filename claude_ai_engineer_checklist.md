@@ -27,8 +27,25 @@
 
 - [ ] Git flow — branche, PR, merge, rebase (widzę, że używasz branchy — dobry start)
 - [x] Pre-commit hooks — `flake8`, `black` — skonfigurowane, pierwszy commit przeszedł ✅ (2026-05-08)
-- [ ] GitHub Actions — automatyczny test po `git push` (1 prosty workflow wystarczy do CV)
+- [x] GitHub Actions — automatyczny test po `git push` (1 prosty workflow wystarczy do CV) ✅ (2026-05-15)
   - *To samo co pre-commit, ale na serwerze — odpala się dla całego teamu przy każdym PR*
+  - **Quiz 2026-05-16 — wynik 4/5:**
+    - ✅ P1 Runner (wirtualna maszyna, checkout)
+    - ✅ P2 Pipeline od git push do ACI (logika poprawna, drobna nieścisłość: ACI sam ściąga image, nie runner)
+    - ⚠️ P3 Łańcuch secrets — rozumie koniec (Azure container config), ale pominął środek: `${{ secrets.X }}` → flaga `--environment-variables` w `az container create`
+    - ✅ P4 load_dotenv() bez .env — nie crashuje + python-dotenv w requirements.txt (ImportError)
+    - ⚠️ P5 Stop/start ACI — poprawna odpowiedź "nie czyści", błędne wyjaśnienie: env vars są w konfiguracji zasobu ACI (Azure RM), nie w "plikach image"
+  - **Luki do powtórki (czerwiec 2026):** P3 łańcuch secrets, P5 gdzie dokładnie siedzą env vars w ACI
+  - **Koncept przyswojony 2026-05-15:**
+    - ✅ Automatyzacja procesów przy pushu na main
+    - ✅ Odpalanie testów jednostkowych automatycznie
+    - ✅ Budowanie wersji systemu (build image)
+    - ✅ **Kluczowy koncept runner:** GitHub Actions = zdalny komputer (Ubuntu VM), który czeka i odpala się gdy coś się dzieje w repo (push, PR, harmonogram). Jak kolega który siedzi i czeka — jak tylko widzi coś na main, buduje, testuje i deployuje.
+    - ✅ **Artefakt** = wynik procesu build (np. obraz Dockera, plik `.whl`). Nexus = firmowy magazyn artefaktów (odpowiednik Azure Container Registry w chmurze).
+
+- [ ] Artefakty i repozytoria artefaktów (Nexus / ACR)
+  - *Artefakt = gotowy produkt z procesu build, który można wersjonować, cofnąć i deployować. Nie kod źródłowy — skompilowany/spakowany wynik.*
+  - *Nexus = firmowy magazyn artefaktów (on-premise). Azure Container Registry (ACR) = odpowiednik Nexusa dla obrazów Docker w Azure.*
 
 ### FastAPI ⭐ PRIORYTET #1
 
@@ -72,8 +89,28 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 
 - [x] Azure Container Instances (ACI) — deploy kontenera Docker ✅ (2026-05-13) — `gold-api` działa na ACI, `/health` i `/predict/gold` odpowiadają
 - [x] Docker Hub jako prywatny rejestr — push image + PAT do Azure ✅ (2026-05-13) — `damgas712/gold-api:latest`, image type: Private, `index.docker.io` jako login server
-- [ ] GitHub Actions — automatyczny deploy po `git push` (build → push → az container create)
+- [x] GitHub Actions — automatyczny deploy po `git push` (build → push → az container create) ✅ (2026-05-15)
+  - **Quiz 2026-05-16 — 4/5 ✅ (opisany wyżej przy GitHub Actions)**
   - *Odpowiednik ręcznego: docker build → tag → push → az container delete/create*
+  - **Pipeline dla tego projektu (omówiony 2026-05-15):**
+    ```
+    push na main
+        ↓
+    1. checkout kodu
+        ↓
+    2. build Docker image (gold-api:latest)
+        ↓
+    3. push image na Docker Hub (damgas712/gold-api)
+        ↓
+    4. redeploy ACI na Azure (gold-api-prediction-v2)
+    ```
+  - *Runner (Ubuntu VM) wykonuje każdy krok z pliku `.yml` — plik `.github/workflows/deploy.yml`*
+  - **Koncepty do quizu (2026-06):**
+    - ✅ GitHub Secrets → `${{ secrets.X }}` w workflow → `--environment-variables` w `az container create` → `os.environ` kontenera → `os.getenv()` — cały łańcuch, wartość nigdzie nie jest w pliku ani kodzie
+    - ✅ `load_dotenv()` na Azure: szuka `.env` → nie ma go → nic nie robi (nie crashuje). Zmienne są już w `os.environ` wstrzyknięte przez Azure
+    - ✅ `python-dotenv` musi być w `requirements.txt` — bez niego `from dotenv import load_dotenv` rzuca `ImportError` przy starcie kontenera
+    - ✅ Stop/Start kontenera NIE czyści zmiennych środowiskowych — są w konfiguracji kontenera, nie w RAM. Znikają tylko przy `az container delete`
+    - ✅ `pip freeze > requirements.txt` — synchronizacja venv z plikiem. Jeśli pakiet jest w venv ale nie w pliku → Docker go nie zainstaluje → crash na Azure
 - [ ] Azure Blob Storage — zapis logów z kontenera
   - *Logi w pliku `app_logs/` istnieją tylko w kontenerze — giną przy restarcie. Blob Storage = zewnętrzny, trwały dysk*
 - [ ] Azure Container Apps — scale-to-zero (tańsza alternatywa dla ACI)
