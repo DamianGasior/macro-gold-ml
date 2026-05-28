@@ -9,6 +9,7 @@ from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import 
 )
 from src.pipeline.pipeline import DataPipeline
 from src.llm.chat import Chat_history
+from src.llm.rag.retriever import search, format_context
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from src.pipeline.utils import SYMBOL_MAPPINGS
@@ -138,6 +139,16 @@ def ask_llm(*args) -> str:
     return response.choices[0].message.content
 
 
+def get_news_context(question: str, n_results: int = 5) -> str:
+    """Odpytuje ChromaDB i zwraca sformatowany blok tekstu z artykułów pasujących do pytania."""
+    try:
+        chunks = search(question, n_results=n_results)
+        return format_context(chunks)
+    except Exception as e:
+        logger.warning(f"RAG niedostępny: {e}")
+        return ""
+
+
 def define_users_input(**kwargs):
     my_dict = {}
     my_dict.update(kwargs)
@@ -162,19 +173,30 @@ def pipeline(chat_history: Chat_history):
         if users_qq == "close":
             logger.debug("Closing this chat.")
             break
-        users_qq_attached = define_users_input(role="user", content=users_qq)
-        # logger.debug(users_qq_attached)
-        resposne = ask_llm(chat_history.return_list_chat_history, users_qq_attached)
-        # logger.debug(resposne)
+
+        news_context = get_news_context(users_qq)
+        if news_context:
+            content = f"{users_qq}\n\nPowiązane artykuły analityczne:\n{news_context}"
+            logger.debug(
+                f"Powiązane artykuły analityczne  :{news_context}\n w odpowiedzi na pytanie uzytkownika : {users_qq}"
+            )
+
+        else:
+            content = users_qq
+
+        users_qq_attached = define_users_input(role="user", content=content)
+        response = ask_llm(chat_history.return_list_chat_history, users_qq_attached)
+        logger.debug(f"Users question was : {users_qq}")
+        logger.debug(f"Response from the LLM model is : {response}")
+        print(f"Response from the LLM model is : {response}")
         chat_history.list_expansion(users_qq_attached)
-        # chat_history.return_list_chat_history
-        chat_history.list_expansion(define_users_input(role="assistant", content=resposne))
+        chat_history.list_expansion(define_users_input(role="assistant", content=response))
 
 
 if __name__ == "__main__":
     from src.logging_config import setup_logging
 
-    setup_logging(level=logging.INFO)
+    setup_logging(level=logging.DEBUG)
 
     draft_chat_history = Chat_history()
 
@@ -190,18 +212,30 @@ if __name__ == "__main__":
     logger.info("\n--- Kontekst wysłany do LLM ---")
     logger.info(context)
     question = "Model LGBM wydał rekomendację. Czy dane techniczne i makro ją potwierdzają czy przeczą? Uzasadnij."
+
+    logger.info("Pobieram kontekst z artykułów (RAG)...")
+    news_context = get_news_context("gold price outlook macro factors dollar inflation")
+    logger.info(
+        f"RAG zwrócił kontekst:\n{news_context[:300]}..."
+        if news_context
+        else "RAG: brak artykułów w bazie"
+    )
+
     users_input = define_users_input(
-        role="user", content=f"Oto aktualne dane rynkowe:\n{context}\n\nPytanie: {question}"
+        role="user",
+        content=f"Oto aktualne dane rynkowe:\n{context}\n\nKontekst z artykułów analitycznych:\n{news_context}\n\nPytanie: {question}",
     )
     draft_chat_history.list_expansion(users_input)
 
     logger.info("\n--- Analiza LLM ---")
-    reponse_from_llm = ask_llm(USER_CONTEXT, users_input)
-    logger.info(reponse_from_llm)
-    converted_resposne = define_users_input(role="assistant", content=reponse_from_llm)
+    response_from_llm = ask_llm(USER_CONTEXT, users_input)
+    logger.info(response_from_llm)
+    converted_resposne = define_users_input(role="assistant", content=response_from_llm)
     draft_chat_history.list_expansion(converted_resposne)
 
     logger.info("\n--- summary of conversation in  LLM ---")
     draft_chat_history.return_list_chat_history
 
     pipeline(draft_chat_history)
+
+# czy sytuacja makroekonimczna i polityczna zacheca do inwestycji w zloto ?

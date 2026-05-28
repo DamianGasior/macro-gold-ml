@@ -21,6 +21,20 @@
 - [ ] Środowiska wirtualne — `venv` lub `conda`, rozumienie `requirements.txt` (już używasz)
 - [ ] Testy jednostkowe — `pytest`, testowanie funkcji ML (zero testów w projekcie — to luka)
 
+### Implementacja algorytmów od zera ⭐ INTERVIEW PREP
+*Rozmowy techniczne w ML często proszą o implementację w numpy — bez sklearn. Rozumiesz wtedy naprawdę co robi model, nie tylko jak go wywołać.*
+
+- [ ] Logistic regression w numpy od zera (gradient descent, sigmoid, binary cross-entropy)
+- [ ] K-means w numpy od zera (centroidy, iteracja, przypisanie klastrów)
+- [ ] Gradient descent krok po kroku — zaktualizuj wagi ręcznie dla prostego przykładu
+
+### LeetCode — podstawy DSA
+*Duże banki i fintech często mają rundę algorytmiczną. 15-20 zadań Easy/Medium wystarczy na start.*
+
+- [ ] Arrays i słowniki — najczęstsze struktury na rozmowach
+- [ ] Sortowanie i wyszukiwanie binarne — klasyki
+- [ ] 15-20 zadań Easy na LeetCode (category: Arrays, Hash Map)
+
 ### Git & CI/CD
 
 *CI = automatyczne sprawdzanie kodu przy każdym push. CD = automatyczny deploy jeśli testy przeszły. Pre-commit to lokalny odpowiednik CI — sprawdza zanim w ogóle wypchniesz.*
@@ -141,11 +155,47 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 - [ ] LangChain lub LlamaIndex — zbuduj 1 działający RAG
 - [ ] Praktyczny projekt: RAG na dokumentach bankowych / raportach makroekonomicznych (idealnie pasuje do twojego projektu!)
 
+**Postęp RAG (2026-05-24):**
+- ✅ `scraper.py` — scraper działa dla stron statycznych (simplevisorinsights.com), trafilatura zastępuje BeautifulSoup do wyciągania tekstu
+- ✅ ChromaDB zainstalowane, trafilatura zainstalowane, Playwright zainstalowane
+- [ ] `indexer.py` — embeddingi + zapis do ChromaDB ← **następny krok**
+- [ ] `retriever.py` — similarity search
+
+**📌 DO ZROBIENIA PÓŹNIEJ — Saxo Bank (home.saxo/insights/news-and-research/macro):**
+Strona renderowana przez JavaScript — `requests` zwraca pusty HTML (0 artykułów).
+Playwright uruchamia się poprawnie, dostaje pełny HTML (478k znaków), ale linki do artykułów ładowane są przez osobne API call (nie widoczne w HTML).
+Potrzeba: zbadać w DevTools zakładkę Network → znaleźć API endpoint który zwraca listę artykułów → odpytać go bezpośrednio lub przez Playwright.
+*Wróć do tego gdy RAG będzie działał na simplevisorinsights.com.*
+
 ### Vector Databases
 
 - [ ] Co to jest indeks wektorowy i dlaczego szybki
-- [ ] Qdrant (open source, lokalnie) lub Pinecone (cloud) — minimum jedno
+- [x] ChromaDB — lokalnie, do nauki i prototypów ✅ (2026-05-24) — `indexer.py` działa, 10 chunków zapisanych
+- [ ] **Pinecone** ⭐ — następny krok po ChromaDB, najpopularniejszy w ogłoszeniach AI Engineer
+  - *Przepnij z ChromaDB gdy będziesz deployował RAG na Azure — zmiana ~10 linii kodu*
+  - *Free: 2GB storage, 2M write units/mies, 1M read units/mies — wystarczy na projekt*
 - [ ] `similarity_search()` — znajdowanie podobnych dokumentów
+
+*Weaviate, pgvector, FAISS — do rozważenia później jako rozszerzenie CV. Teraz fokus: ChromaDB → Pinecone.*
+
+### Evals dla LLM ⭐ WAŻNE DLA ROZMÓW
+*Jak sprawdzasz czy Twój LLM działa poprawnie? To pytają na każdej rozmowie o AI Engineer.*
+
+- [ ] Format checks — odpowiedź po polsku? Mieści się w max 4 zdaniach? (testy jednostkowe stylu pytest)
+- [ ] Behavior checks — przy sygnale LONG model nie odpowiada "brak sygnału", przy NO TRADE nie halucynuje kupna
+- [ ] Zestaw 10-20 scenariuszy testowych dla `gold_analysis.py` z mock_response (bez prawdziwego API call)
+- [ ] Metryka: % scenariuszy które przechodzą (cel: >80%)
+- [ ] LLM-as-judge — osobny skrypt odpalany raz na tydzień / przed deploy'em:
+  - mocniejszy model (np. gpt-4o) ocenia próbkę odpowiedzi słabszego (gpt-4o-mini)
+  - wejście: pytanie + odpowiedź; wyjście: PASS / FAIL + uzasadnienie
+  - NIE przy każdym zapytaniu produkcyjnym — za drogo; uruchamiasz ręcznie lub przez GitHub Actions schedule
+
+### MLflow — experiment tracking
+*4 linijki kodu w istniejącym LGBM pipeline. Pokazuje że traktujesz ML produkcyjnie — pytają o to na każdej rozmowie.*
+
+- [ ] Zaloguj 1 trening LGBM: parametry (`threshold`, `n_estimators`) + metryki (Sharpe, CAGR) + artefakt `.pkl`
+- [ ] `mlflow ui` — porównaj 2-3 runy w przeglądarce (który parametr dał lepszy Sharpe?)
+- [ ] Rozumiesz różnicę: `mlflow.log_param()` vs `mlflow.log_metric()` vs `mlflow.log_artifact()`
 
 ### LangChain / LlamaIndex
 
@@ -168,7 +218,6 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 
 ### Monitoring ML (MLOps basics)
 
-- [ ] MLflow — logowanie eksperymentów, metryk, artefaktów modelu (dodaj do swojego LightGBM projektu!)
 - [ ] Concept drift — co to jest i jak wykrywać
 - [ ] Model versioning
 
