@@ -94,6 +94,7 @@ target/
 *_local.ipynb
 *_draft.md
 *_local.csv
+test_*/
 
 # IPython
 profile_default/
