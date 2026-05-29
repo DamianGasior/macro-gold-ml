@@ -1,0 +1,22 @@
+name: Start Azure Container
+
+on:
+    schedule:
+    - cron: '30 6 * * 1-5' 
+
+jobs:
+  start-container:
+    runs-on: ubuntu-latest
+    
+    steps: 
+ # Krok 1: zaloguj się do Azure używając service principal
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+      - name: Start ACI 
+        run: |
+          az container start \
+            --resource-group gold-api-rg \
+            --name gold-api-prediction-v2
