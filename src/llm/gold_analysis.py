@@ -136,6 +136,9 @@ def ask_llm(*args) -> str:
         messages=messages_updated,
     )
 
+    logger.debug(f"response dir {dir(response)}")
+    logger.debug(f"response_choices dir {dir(response.choices[0])}")
+
     return response.choices[0].message.content
 
 
@@ -167,37 +170,35 @@ def users_input_text():
     return text
 
 
-def pipeline(chat_history: Chat_history):
-    while True:
-        users_qq = users_input_text()
-        if users_qq == "close":
-            logger.debug("Closing this chat.")
-            break
+def pipeline(qeury_from_users, chat_history: Chat_history):
 
-        news_context = get_news_context(users_qq)
-        if news_context:
-            content = f"{users_qq}\n\nPowiązane artykuły analityczne:\n{news_context}"
-            logger.debug(
-                f"Powiązane artykuły analityczne  :{news_context}\n w odpowiedzi na pytanie uzytkownika : {users_qq}"
-            )
+    # while True:
+    users_qq = qeury_from_users
+    # if users_qq == "close":
+    #     logger.debug("Closing this chat.")
+    #     break
 
-        else:
-            content = users_qq
+    news_context = get_news_context(users_qq)
+    if news_context:
+        content = f"{users_qq}\n\nPowiązane artykuły analityczne:\n{news_context}"
+        logger.debug(
+            f"Powiązane artykuły analityczne  :{news_context}\n w odpowiedzi na pytanie uzytkownika : {users_qq}"
+        )
 
-        users_qq_attached = define_users_input(role="user", content=content)
-        response = ask_llm(chat_history.return_list_chat_history, users_qq_attached)
-        logger.debug(f"Users question was : {users_qq}")
-        logger.debug(f"Response from the LLM model is : {response}")
-        print(f"Response from the LLM model is : {response}")
-        chat_history.list_expansion(users_qq_attached)
-        chat_history.list_expansion(define_users_input(role="assistant", content=response))
+    else:
+        content = users_qq
+
+    users_qq_attached = define_users_input(role="user", content=content)
+    response = ask_llm(chat_history.return_list_chat_history, users_qq_attached)
+    logger.debug(f"Users question was : {users_qq}")
+    logger.debug(f"Response from the LLM model is : {response}")
+    # print(f"Response from the LLM model is : {response}")
+    chat_history.list_expansion(users_qq_attached)
+    chat_history.list_expansion(define_users_input(role="assistant", content=response))
+    return f"Response from the LLM model is : {response}"
 
 
-if __name__ == "__main__":
-    from src.logging_config import setup_logging
-
-    setup_logging(level=logging.DEBUG)
-
+def pre_pipeline():
     draft_chat_history = Chat_history()
 
     logger.info("Pobieranie danych rynkowych...")
@@ -234,8 +235,55 @@ if __name__ == "__main__":
     draft_chat_history.list_expansion(converted_resposne)
 
     logger.info("\n--- summary of conversation in  LLM ---")
-    draft_chat_history.return_list_chat_history
+    # draft_chat_history.return_list_chat_history
+    return draft_chat_history
 
-    pipeline(draft_chat_history)
+
+if __name__ == "__main__":
+    from src.logging_config import setup_logging
+
+    setup_logging(level=logging.DEBUG)
+
+    # draft_chat_history = Chat_history()
+
+    # logger.info("Pobieranie danych rynkowych...")
+    # df = fetch_latest_features()
+    # logger.debug(f"columns of the df used are : {df.columns}")
+    # logger.debug(f"head of the df is :{df.head(20)}")
+
+    # lgbm_signal = get_lgbm_signal(df)
+    # context = build_market_context(df, lgbm_signal)
+    # draft_chat_history.list_expansion(USER_CONTEXT)
+
+    # logger.info("\n--- Kontekst wysłany do LLM ---")
+    # logger.info(context)
+    # question = "Model LGBM wydał rekomendację. Czy dane techniczne i makro ją potwierdzają czy przeczą? Uzasadnij."
+
+    # logger.info("Pobieram kontekst z artykułów (RAG)...")
+    # news_context = get_news_context("gold price outlook macro factors dollar inflation")
+    # logger.info(
+    #     f"RAG zwrócił kontekst:\n{news_context[:300]}..."
+    #     if news_context
+    #     else "RAG: brak artykułów w bazie"
+    # )
+
+    # users_input = define_users_input(
+    #     role="user",
+    #     content=f"Oto aktualne dane rynkowe:\n{context}\n\nKontekst z artykułów analitycznych:\n{news_context}\n\nPytanie: {question}",
+    # )
+    # draft_chat_history.list_expansion(users_input)
+
+    # logger.info("\n--- Analiza LLM ---")
+    # response_from_llm = ask_llm(USER_CONTEXT, users_input)
+    # logger.info(response_from_llm)
+    # converted_resposne = define_users_input(role="assistant", content=response_from_llm)
+    # draft_chat_history.list_expansion(converted_resposne)
+
+    # logger.info("\n--- summary of conversation in  LLM ---")
+    # draft_chat_history.return_list_chat_history
+
+    draft_chat_history = pre_pipeline()
+    users_query = users_input_text()
+    pipeline(users_query, draft_chat_history)
 
 # czy sytuacja makroekonimczna i polityczna zacheca do inwestycji w zloto ?

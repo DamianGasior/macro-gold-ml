@@ -67,6 +67,8 @@
 - [x] Serwowanie modelu ML przez API — `POST /predict` → zwraca predykcję złota ✅ (2026-05-10) — model LGBM załadowany przez joblib, Pydantic waliduje 96 features
 - [x] Pydantic do walidacji danych wejściowych ✅ (2026-05-10) — PredictRequest + PredictResponse, walidacja typów działa
 - [x] Swagger UI / dokumentacja automatyczna ✅ (2026-05-10) — localhost:8000/docs działa out-of-the-box
+- [ ] `POST /chat` — endpoint czatu z LLM + RAG: `session_id` + `question` → odpowiedź LLM; historia per sesja w `sessions` dict (in-memory, bez Redis)
+- [ ] FastAPI startup event — cache pre-warming: `@app.on_event("startup")` wywołuje `index_site()` + `get_latest_features()` zanim serwer przyjmie pierwszy request
 
 **Quiz 2026-05-10 — wynik 4/5:**
 ✅ uvicorn (rola serwera HTTP)
@@ -125,6 +127,7 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
     - ✅ `python-dotenv` musi być w `requirements.txt` — bez niego `from dotenv import load_dotenv` rzuca `ImportError` przy starcie kontenera
     - ✅ Stop/Start kontenera NIE czyści zmiennych środowiskowych — są w konfiguracji kontenera, nie w RAM. Znikają tylko przy `az container delete`
     - ✅ `pip freeze > requirements.txt` — synchronizacja venv z plikiem. Jeśli pakiet jest w venv ale nie w pliku → Docker go nie zainstaluje → crash na Azure
+- [x] GitHub Actions — scheduled start/stop ACI ✅ (2026-05-29) — `start.yml` (cron 06:30 UTC = 08:30 CEST, pon-pt) + `stop.yml` (cron 21:30 UTC = 23:30 CEST, pon-pt). Kontener wyłączony w weekend → oszczędność ~40-60% vs non-stop (~$8/mies vs ~$18/mies)
 - [ ] Azure Blob Storage — zapis logów z kontenera
   - *Logi w pliku `app_logs/` istnieją tylko w kontenerze — giną przy restarcie. Blob Storage = zewnętrzny, trwały dysk*
 - [ ] Azure Container Apps — scale-to-zero (tańsza alternatywa dla ACI)

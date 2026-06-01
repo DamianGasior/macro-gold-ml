@@ -12,6 +12,8 @@ from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import 
 )
 from src.pipeline.pipeline import DataPipeline
 from src.pipeline.utils import SYMBOL_MAPPINGS
+from src.llm.gold_analysis import pre_pipeline, pipeline
+
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -32,14 +34,20 @@ except FileNotFoundError:
 
 # Below Was used in the POST endpoint, leaving it here, might be reused in the future
 # together with the method @app.post("/predict", response_model=PredictResponse)
-# def predict(request: PredictRequest):
+
 # class PredictRequest(BaseModel):
 #     asset_name: str
+# def predict(request: PredictRequest):
 
 
 class PredictResponse(BaseModel):
     prediction: str  # "long" lub "no_trade"
     probability: float  # pewność modelu (0.0 - 1.0)
+
+
+class ChatRequest(BaseModel):
+    question: str
+    # answer : str
 
 
 # Cache w pamięci — dane rynkowe zmieniają się raz dziennie, nie ma sensu odpytywać API przy każdym requeście
@@ -127,3 +135,12 @@ def predict():
         prediction=prediction,
         probability=round(float(probability), 4),
     )
+
+
+@app.post("/post/chat")
+def chat(request: ChatRequest):
+    chat_history = pre_pipeline()
+    users_query = request.question
+
+    answer_from_model = pipeline(users_query, chat_history)
+    return answer_from_model
