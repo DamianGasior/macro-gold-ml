@@ -13,6 +13,7 @@ from src.llm.rag.retriever import search, format_context
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from src.pipeline.utils import SYMBOL_MAPPINGS
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,9 @@ def users_input_text():
     return text
 
 
-def pipeline(qeury_from_users, chat_history: Chat_history):
+def pipeline(qeury_from_users, rec_chat_history, id):
+
+    updated_chat_history = Chat_history()
 
     # while True:
     users_qq = qeury_from_users
@@ -189,16 +192,31 @@ def pipeline(qeury_from_users, chat_history: Chat_history):
         content = users_qq
 
     users_qq_attached = define_users_input(role="user", content=content)
-    response = ask_llm(chat_history.return_list_chat_history, users_qq_attached)
+    logger.debug(f"rec_chat_history:{rec_chat_history}")
+    logger.debug(f"rec_chat_history type:{type(rec_chat_history)}")
+    response = ask_llm(rec_chat_history, users_qq_attached)
     logger.debug(f"Users question was : {users_qq}")
     logger.debug(f"Response from the LLM model is : {response}")
     # print(f"Response from the LLM model is : {response}")
-    chat_history.list_expansion(users_qq_attached)
-    chat_history.list_expansion(define_users_input(role="assistant", content=response))
-    return f"Response from the LLM model is : {response}"
+    updated_chat_history.list_expansion(users_qq_attached)
+    updated_chat_history.list_expansion(define_users_input(role="assistant", content=response))
+
+    updated_chat_history.expand_chat_with_id(id)
+    # whole_context=updated_chat_history.return_chat_history_based_on_id(id)
+    whole_context = updated_chat_history.return_list_chat()
+
+    logger.debug(f"chat_history:{whole_context}")
+    logger.debug(f"chat_history type:{type(whole_context)}")
+
+    # whole_context=chat_history.return_chat_history_based_on_id(id)
+    return whole_context, f"Response from the LLM model is : {response}"
 
 
 def pre_pipeline():
+    id_assigned = uuid.uuid4()
+    logger.debug(f"id_assigned :{id_assigned}")
+    logger.debug(f"id_assigned type :{type(id_assigned)}")
+
     draft_chat_history = Chat_history()
 
     logger.info("Pobieranie danych rynkowych...")
@@ -235,8 +253,9 @@ def pre_pipeline():
     draft_chat_history.list_expansion(converted_resposne)
 
     logger.info("\n--- summary of conversation in  LLM ---")
-    # draft_chat_history.return_list_chat_history
-    return draft_chat_history
+    draft_chat_history.expand_chat_with_id(id_assigned)
+    list_of_chat_histry = draft_chat_history.return_list_chat_history()
+    return id_assigned, list_of_chat_histry
 
 
 if __name__ == "__main__":

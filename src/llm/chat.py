@@ -5,32 +5,28 @@ logger = logging.getLogger(__name__)
 
 class Chat_history:
     def __init__(self):
-        # self._saved_chats = {}
+        self._saved_chats = {}
         self._conv_in_list = []
 
-    # def expand_chat(self, key, value):
+    def expand_chat_with_id(self, key):
 
-    #     self._saved_chats[key] = value
-    #     logger.debug(f"'key' to : {key}, a 'value' to {value}")
-    #     self.list_expansion(self._saved_chats)
-    #     return self._saved_chats
+        self._saved_chats[key] = self._conv_in_list
+        logger.debug(f"'key' to : {key}, a 'value' to {self._conv_in_list}")
 
     def list_expansion(self, item):
         self._conv_in_list.append(item)
         logger.debug(f"dlugosic list to {len(self._conv_in_list)}")
         return self._conv_in_list
 
-    # @property
-    # def users_input_text_validation(self):
-    #     #dopisac tu tylko walidacje i bedzie gralo
+    def return_list_chat(self):
+        logger.debug(f"self._conv_in_list is {self._conv_in_list}")
+        logger.debug(f"self._conv_in_list type is: {type(self._conv_in_list)}")
+        return self._conv_in_list
 
-    # @property
-    # def return_dict_chat_history(self):
-    #     for key, value in self._saved_chats.items():
-    #         logger.debug(f"klucz to : {key}, a value to {value}")
-    #     return self._saved_chats
+    def return_chat_history_based_on_id(self, key):
+        conv_hisotry = self._saved_chats[key]
+        return conv_hisotry
 
-    @property
     def return_list_chat_history(self):
         logger.debug(f"===========dlugosc list to=======\n : {len(self._conv_in_list)}")
         for i in self._conv_in_list:

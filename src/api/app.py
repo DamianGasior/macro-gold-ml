@@ -13,7 +13,7 @@ from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import 
 from src.pipeline.pipeline import DataPipeline
 from src.pipeline.utils import SYMBOL_MAPPINGS
 from src.llm.gold_analysis import pre_pipeline, pipeline
-
+from src.llm.chat import Chat_history
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -47,11 +47,30 @@ class PredictResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
-    # answer : str
+    uuid: str | None = None
+
+    @property
+    def id_check(self):
+        logger.info(f"self.uuid is : {self.uuid}")
+        logger.info(f"self.uuid is type: {type(self.uuid)}")
+        return self.uuid
+
+
+class ChatResponse(BaseModel):
+    response: str
+    uuid: str
+
+    @staticmethod
+    def request_chat_history(id, chat_instance):
+        chat_instance = Chat_history
+        chat_hist = chat_instance.return_chat_history_based_on_id(id)
+        return chat_hist
 
 
 # Cache w pamięci — dane rynkowe zmieniają się raz dziennie, nie ma sensu odpytywać API przy każdym requeście
 _cache: dict = {"data": None, "expires_at": datetime.min}
+
+_chat_sessions: dict = {}
 
 
 def get_latest_features() -> pd.DataFrame:
@@ -139,8 +158,72 @@ def predict():
 
 @app.post("/post/chat")
 def chat(request: ChatRequest):
-    chat_history = pre_pipeline()
-    users_query = request.question
+    logger.debug(f"request.question is:{request.question}")
+    logger.debug(f"request.uuid is:{request.uuid}")
+    session_id = request.id_check
+    # for key in  _chat_sessions.keys():
+    #     logger.debug(f"key iin chat session is:{key}")
 
-    answer_from_model = pipeline(users_query, chat_history)
-    return answer_from_model
+    # wykorzystac _cache:
+    if request.id_check is None:
+        id, chat_history = pre_pipeline()
+        # logger.debug(f"request.id:{id}")
+        # logger.debug(f"request.id:{type(id)}")
+        users_query = request.question
+        request.uuid = str(id)
+        # logger.debug(f"request.uuid:{request.uuid}")
+
+        logger.debug(f"chat_history type:{type(chat_history)}")
+        logger.debug(f"chat_history :{chat_history}")
+
+        response_with_context, answer_from_model = pipeline(users_query, chat_history, id)
+        logger.debug(f"answer_from_model:{answer_from_model}")
+        logger.debug(f"response_with_context:{response_with_context}")
+        logger.debug(f"response_with_context type:{type(response_with_context)}")
+
+        full_chat_history = []
+
+        full_chat_history.extend([*chat_history, *response_with_context])
+
+        _chat_sessions[request.uuid] = full_chat_history
+        logger.debug(f"full_chat_history:{full_chat_history}")
+        logger.debug(f"full_chat_history type:{type(full_chat_history)}")
+        # logger.debug(f"request.uuid:{request.id_check}")
+        return ChatResponse(response=answer_from_model, uuid=str(request.id_check))
+
+        # id = request.id_check
+    elif _chat_sessions.get(session_id) is not None:
+        print(session_id)  # bd6a0a83-6d2e-45a3-8d94-1b42c62014f5
+        # if test_id in _chat_sessions:
+        #     print('true_key')
+        users_query = request.question
+        # for key ,value in _chat_sessions.items():
+        #     print (f'key_is:{key}')
+        retrieved_chat = _chat_sessions[request.uuid]  #
+
+        logger.debug(f"retrieved_chat type:{type(retrieved_chat)}")
+        logger.debug(f"retrieved_chat :{retrieved_chat}")
+
+        response_with_context, answer_from_model = pipeline(
+            users_query, retrieved_chat, request.uuid
+        )
+        logger.debug(f"answer_from_model:{answer_from_model}")
+        logger.debug(f"response_with_context:{response_with_context}")
+
+        full_chat_history = []
+
+        full_chat_history.extend([*retrieved_chat, *response_with_context])
+
+        _chat_sessions[request.uuid] = full_chat_history
+
+        return ChatResponse(response=answer_from_model, uuid=str(request.id_check))
+
+    else:
+        return "No solution yet"
+
+
+# przypisz uuid4() w pre-pipeliine, niech metoda zwroci uuid4 rowniez
+# dodaj cala histtorie i liste do dict ktora stworzysz  w schemacie uuid- : self._conv_in_list z chat history, wykorzystaj ten dict  # self._saved_chats = {}
+# jesli odpalisz jeszcze raz zapytanie, to user id rowniez bedzie przypisany jako atrybut klasy chat Request
+# jesli atrybut bedzie none / nie bedzie etgo w dict w Chat history, to strzel od poczatku pipeline, ale jesli bedzie
+# to pobierz historie, wrzuc context i daj wtedy nowe pytanie do llm modelu
