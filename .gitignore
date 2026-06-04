@@ -223,6 +223,9 @@ models/
 # Cache bazy danych
 *.sqlite
 
+# Chroma vector DB — dane runtime, regenerowalne lokalnie
+src/llm/rag/chroma_db/
+
 # Wykresy generowane przez model (regenerowalne, nie są kodem)
 src/ml_work/lgm_classifier/equity_curve_summary/
 src/ml_work/lgm_classifier/shap_summary/
