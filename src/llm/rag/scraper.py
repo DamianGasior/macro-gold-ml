@@ -1,3 +1,5 @@
+import json
+import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 import logging
@@ -18,6 +20,125 @@ SAXO_CATEGORY_MAP = {
     "https://www.home.saxo/insights/news-and-research/commodities": "commodities",
     "https://www.home.saxo/insights/news-and-research/bonds": "bonds",
 }
+
+# Gold.org ukrywa Algolię za proxy, ale przy przewijaniu strony wysyła bezpośrednie zapytania
+# do Algolia API z publicznym kluczem read-only (search-only key — bezpieczny).
+GOLD_ORG_BASE_URL = "https://www.gold.org"
+GOLD_ORG_RESEARCH_URL = "https://www.gold.org/goldhub/research/library"
+ALGOLIA_ENDPOINT = "https://ic5o1qhija-dsn.algolia.net/1/indexes/*/queries"
+ALGOLIA_APP_ID = "IC5O1QHIJA"
+ALGOLIA_SEARCH_KEY = "a53dfaac4daa2df77914a57de3fb4e84"
+ALGOLIA_INDEX = "goldorg2_research_prod_en"
+
+# Dostępne topics: Gold Market structure and trends, Investment commentary, Central banks, ESG.
+# Domyślnie bierzemy wszystkie poza ESG.
+GOLD_ORG_DEFAULT_TOPICS = [
+    "Gold Market structure and trends",
+    "Investment commentary",
+    "Central banks",
+]
+
+# Dostępne kolekcje: Gold Market Commentary, Gold ETF Flows, Outlook,
+# Weekly Markets Monitor, Gold Demand Trends, Case for Gold, Blogs, Gold Market Primers, Central Banks Survey.
+# Domyślnie pusty — filtrujemy tylko po topics, nie ograniczamy kolekcji.
+GOLD_ORG_DEFAULT_COLLECTIONS: list[str] = []
+
+
+def fetch_gold_org_article_links(
+    collections: list[str] | None = None,
+    topics: list[str] | None = None,
+) -> list[str]:
+    """Pobiera linki do artykułów gold.org przez Algolia API.
+
+    collections: lista kolekcji (OR między nimi). None = GOLD_ORG_DEFAULT_COLLECTIONS (brak filtra).
+                 Przykład: ["Gold Market Commentary", "Outlook"]
+    topics:      lista topics (OR między nimi). None = GOLD_ORG_DEFAULT_TOPICS (wszystkie poza ESG).
+                 Przykład: ["Central banks", "Investment commentary"]
+    Oba filtry łączone są przez AND — artykuł musi pasować do obu.
+    Przekaż [] dla dowolnego parametru żeby wyłączyć ten filtr.
+    """
+    if collections is None:
+        collections = GOLD_ORG_DEFAULT_COLLECTIONS
+    if topics is None:
+        topics = GOLD_ORG_DEFAULT_TOPICS
+
+    algolia_headers = {
+        "x-algolia-api-key": ALGOLIA_SEARCH_KEY,
+        "x-algolia-application-id": ALGOLIA_APP_ID,
+        "Content-Type": "application/json",
+    }
+
+    # facetFilters: każdy element to warunek AND.
+    # Element będący listą = OR między jego wartościami.
+    # Przykład: [["topics:A","topics:B"], "language_text:English"]
+    # → (topic A LUB B) AND język angielski
+    facet_filters: list = ["language_text:English"]
+    if collections:
+        facet_filters.append([f"collections:{c}" for c in collections])
+    if topics:
+        facet_filters.append([f"topics:{t}" for t in topics])
+
+    hits_per_page = 100
+    page = 0
+    all_urls = []
+
+    # Algolia multi-query API wymaga żeby params był URL-encoded stringiem,
+    # a zagnieżdżone listy (facetFilters) muszą być wcześniej JSON-encoded.
+    attributes_to_retrieve = ["url", "title", "publication_date_display"]
+    params_template = {
+        "facetFilters": json.dumps(facet_filters),
+        "attributesToRetrieve": json.dumps(attributes_to_retrieve),
+    }
+
+    while True:
+        params_str = urllib.parse.urlencode(
+            {
+                **params_template,
+                "hitsPerPage": hits_per_page,
+                "page": page,
+            }
+        )
+        body = {
+            "requests": [
+                {
+                    "indexName": ALGOLIA_INDEX,
+                    "params": params_str,
+                }
+            ]
+        }
+
+        try:
+            response = requests.post(
+                ALGOLIA_ENDPOINT, headers=algolia_headers, json=body, timeout=10
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.warning(f"Błąd Algolia API (strona {page}): {e}")
+            break
+
+        data = response.json()
+        results = data.get("results", [{}])[0]
+        hits = results.get("hits", [])
+        nb_pages = results.get("nbPages", 0)
+
+        for hit in hits:
+            relative_url = hit.get("url", "")
+            if relative_url:
+                all_urls.append(f"{GOLD_ORG_BASE_URL}{relative_url}")
+
+        logger.info(
+            f"Gold.org Algolia: strona {page + 1}/{nb_pages}, zebrano {len(all_urls)} linków"
+        )
+
+        page += 1
+        if page >= nb_pages:
+            break
+
+    logger.info(
+        f"Znaleziono łącznie {len(all_urls)} artykułów gold.org "
+        f"(topics: {topics or 'wszystkie'}, collections: {collections or 'wszystkie'})"
+    )
+    return all_urls
 
 
 def fetch_saxo_article_links(category: str) -> list[str]:
@@ -53,6 +174,10 @@ def fetch_article_links(index_url: str) -> list[str]:
     # Saxo wymaga JS do wyrenderowania listy artykułów — używamy sitemapy zamiast HTML
     if index_url in SAXO_CATEGORY_MAP:
         return fetch_saxo_article_links(SAXO_CATEGORY_MAP[index_url])
+
+    # Gold.org używa Algolia — pobieramy linki bezpośrednio przez API
+    if index_url == GOLD_ORG_RESEARCH_URL:
+        return fetch_gold_org_article_links()
 
     logger.info(f"Pobieram linki z: {index_url}")
     response = requests.get(index_url, headers=HEADERS, timeout=10)
@@ -110,18 +235,17 @@ def fetch_article_links(index_url: str) -> list[str]:
 def fetch_article_text(url: str) -> str:
     logger.debug(f"Pobieram artykuł: {url}")
 
-    # Krok 1: pobierz stronę
     downloaded = trafilatura.fetch_url(url)
 
-    # Krok 2: wyciągnij tylko tekst artykułu
-    text = trafilatura.extract(downloaded)
-    logger.debug(f"Downloaded text id: {text}")
+    # favor_precision=True odrzuca stopki, disclaimery i bloki nawigacyjne —
+    # trafilatura wybiera tylko tekst o wysokiej pewności że to treść artykułu.
+    text = trafilatura.extract(downloaded, favor_precision=True)
 
     if text:
         logger.debug(f"Pierwsze 500 znaków:\n{'-' * 40}")
         logger.debug(text[:500])
     else:
-        logger.debug("BRAK TEKSTU — trafilatura nie poradziła sobie z tą stroną")
+        logger.warning(f"BRAK TEKSTU — artykuł prawdopodobnie za paywallem lub wymaga JS: {url}")
     return text or ""
 
 
@@ -176,12 +300,13 @@ if __name__ == "__main__":
         "https://www.home.saxo/insights/news-and-research/macro",
         "https://www.home.saxo/insights/news-and-research/commodities",
         "https://www.home.saxo/insights/news-and-research/bonds",
+        GOLD_ORG_RESEARCH_URL,
     ]
 
     for url in urls:
         logger.debug(f"\n{'=' * 60}")
         logger.debug(f"Testuję: {url}")
-        chunks = scrape_site(url, max_articles=2)
+        chunks = scrape_site(url, max_articles=5)
         if chunks:
             logger.debug("Pierwszy chunk (pierwsze 300 znaków):")
             logger.debug(chunks[0]["text"][:300])

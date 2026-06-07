@@ -4,6 +4,8 @@ import logging
 import joblib
 import pandas as pd
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from src.logging_config import setup_logging
 from pydantic import BaseModel
 from src.api_providers.common_df_merger.multiple_dataframe_transformer import Multiple_df_manager
@@ -24,6 +26,15 @@ app = FastAPI(
     description="API do predykcji kierunku złota za pomocą modelu LGBM",
     version="0.1.0",
 )
+
+# serwuje pliki z folderu static/ pod ścieżką /static
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
+
 
 # Model i feature_columns ładowane raz przy starcie serwera
 try:
