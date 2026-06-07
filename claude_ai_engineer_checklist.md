@@ -67,7 +67,9 @@
 - [x] Serwowanie modelu ML przez API — `POST /predict` → zwraca predykcję złota ✅ (2026-05-10) — model LGBM załadowany przez joblib, Pydantic waliduje 96 features
 - [x] Pydantic do walidacji danych wejściowych ✅ (2026-05-10) — PredictRequest + PredictResponse, walidacja typów działa
 - [x] Swagger UI / dokumentacja automatyczna ✅ (2026-05-10) — localhost:8000/docs działa out-of-the-box
-- [ ] `POST /chat` — endpoint czatu z LLM + RAG: `session_id` + `question` → odpowiedź LLM; historia per sesja w `sessions` dict (in-memory, bez Redis)
+- [x] `POST /chat` — endpoint czatu z LLM + RAG ✅ (2026-06-05) — działa lokalnie i na Azure. `ChatRequest` (question + uuid), `ChatResponse` (response + uuid), historia per sesja w `_chat_sessions` dict (in-memory). UUID generowany w `pre_pipeline()`, zwracany do klienta, wysyłany przy kolejnych pytaniach.
+  - **Debug w tej sesji:** UUID type mismatch — klucz w dict był `UUID object`, klient odsyłał `str` → fix: `str(id)` przy zapisie. Znaleziony przez breakpointy + Debug Console.
+  - **Frontend:** `static/index.html` serwowany przez FastAPI (`StaticFiles` + `FileResponse`). Użytkownik otwiera `http://<url>/` — JavaScript wysyła POST do `/post/chat` za kulisami.
 - [ ] FastAPI startup event — cache pre-warming: `@app.on_event("startup")` wywołuje `index_site()` + `get_latest_features()` zanim serwer przyjmie pierwszy request
 
 **Quiz 2026-05-10 — wynik 4/5:**
@@ -158,17 +160,21 @@ POST /predict przyjmuje teraz tylko `{"asset_name": "gold"}` — API samo fetchu
 - [ ] LangChain lub LlamaIndex — zbuduj 1 działający RAG
 - [ ] Praktyczny projekt: RAG na dokumentach bankowych / raportach makroekonomicznych (idealnie pasuje do twojego projektu!)
 
-**Postęp RAG (2026-05-24):**
-- ✅ `scraper.py` — scraper działa dla stron statycznych (simplevisorinsights.com), trafilatura zastępuje BeautifulSoup do wyciągania tekstu
+**Postęp RAG (2026-05-24 → 2026-06-07):**
+- ✅ `scraper.py` — scraper działa: simplevisorinsights.com (statyczna), Saxo (sitemap XML), gold.org (Algolia API)
 - ✅ ChromaDB zainstalowane, trafilatura zainstalowane, Playwright zainstalowane
-- [ ] `indexer.py` — embeddingi + zapis do ChromaDB ← **następny krok**
-- [ ] `retriever.py` — similarity search
+- ✅ `indexer.py` — embeddingi + zapis do ChromaDB (2026-05-24)
+- ✅ `retriever.py` — similarity search (2026-05-26)
 
-**📌 DO ZROBIENIA PÓŹNIEJ — Saxo Bank (home.saxo/insights/news-and-research/macro):**
-Strona renderowana przez JavaScript — `requests` zwraca pusty HTML (0 artykułów).
-Playwright uruchamia się poprawnie, dostaje pełny HTML (478k znaków), ale linki do artykułów ładowane są przez osobne API call (nie widoczne w HTML).
-Potrzeba: zbadać w DevTools zakładkę Network → znaleźć API endpoint który zwraca listę artykułów → odpytać go bezpośrednio lub przez Playwright.
-*Wróć do tego gdy RAG będzie działał na simplevisorinsights.com.*
+**✅ Saxo Bank — rozwiązane (2026-05-24):**
+Sitemap XML (`article-sitemap-en-1.xml`) jako obejście JS-rendered listing page. `fetch_saxo_article_links()` parsuje XML przez `xml.etree.ElementTree`, filtruje po kategorii (macro/commodities/bonds).
+
+**✅ gold.org — rozwiązane przez Algolia API (2026-06-07):**
+Strona JS-rendered, ale przy scrollowaniu wysyła zapytania do Algolia API z publicznym search-only kluczem.
+Odkryte przez DevTools → Network tab → Fetch/XHR. `fetch_gold_org_article_links()` wywołuje Algolia REST API bezpośrednio (POST, JSON body, URL-encoded params). Filtrowanie po `topics` (wszystkie poza ESG) i opcjonalnie `collections`. Łącznie 1000 artykułów dostępnych.
+- `trafilatura.extract(favor_precision=True)` — odrzuca disclaimery i stopki ✅
+- Artykuły za paywallem (Weekly Markets Monitor) — pomijane automatycznie (zwracają `""`) ✅
+- **Quiz topic:** facetFilters AND/OR, Algolia multi-query API, URL-encoded params, search-only key
 
 ### Vector Databases
 
