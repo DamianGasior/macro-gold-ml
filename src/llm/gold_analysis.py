@@ -32,14 +32,14 @@ feature_columns = joblib.load("models/feature_columns.pkl")
 
 USER_CONTEXT = {
     "role": "system",
-    "content": """Jesteś analitykiem rynku złota z perspektywą średnio i długoterminową.
-Interpretujesz dane techniczne i makroekonomiczne dotyczące XAU/USD (spot złoto).
+    "content": """You are a gold market analyst with a medium and long-term perspective.
+You interpret technical and macroeconomic data for XAU/USD (spot gold).
 
-Zasady:
-- Opieraj się wyłącznie na dostarczonych danych
-- Szukaj analogii w historii rynków złota
-- Zamiast halucynować powiedz: 'brak danych do oceny'
-- Odpowiadaj po polsku, zwięźle — maksymalnie 4 zdania""",
+Rules:
+- Base your analysis solely on the provided data
+- Look for analogies in gold market history
+- Instead of hallucinating say: 'insufficient data to assess'
+- Answer in English, concisely — maximum 4 sentences""",
 }
 
 
@@ -83,28 +83,28 @@ def build_market_context(df, lgbm_signal: dict) -> str:
     return f"""
 
 
-Data: {date.strftime('%Y-%m-%d')}
+Date: {date.strftime('%Y-%m-%d')}
 
-Sygnał modelu LGBM:
-- Rekomendacja: {lgbm_signal['prediction']}
-- Prawdopodobieństwo (long): {lgbm_signal['probability']:.1%}
+LGBM model signal:
+- Recommendation: {lgbm_signal['prediction']}
+- Probability (long): {lgbm_signal['probability']:.1%}
 
-XAU/USD (spot złoto):
-- Dzienny zwrot: {latest['GOLD_return']:.4%}
-- Zwrot 5-dniowy: {latest['GOLD_return_5']:.4%}
-- Zwrot 20-dniowy: {latest['GOLD_return_20']:.4%}
-- Gold trend regime below , interpetation : if >0 , price is above average = uptrend ; if <0 , price is below average = downtrend
-- Trend 10-dniowy: {latest['GOLD_trend_regime_10']:.0f} (1=powyżej MA, -1=poniżej)
-- Trend 20-dniowy: {latest['GOLD_trend_regime_20']:.0f}
-- Trend 30-dniowy: {latest['GOLD_trend_regime_30']:.0f}
-- Zmiennosc 20-dniowa: {latest['GOLD_vol_20']:.4%}
+XAU/USD (spot gold):
+- Daily return: {latest['GOLD_return']:.4%}
+- 5-day return: {latest['GOLD_return_5']:.4%}
+- 20-day return: {latest['GOLD_return_20']:.4%}
+- Trend regime: >0 = price above moving average = uptrend; <0 = price below moving average = downtrend
+- 10-day trend: {latest['GOLD_trend_regime_10']:.0f} (1=above MA, -1=below MA)
+- 20-day trend: {latest['GOLD_trend_regime_20']:.0f}
+- 30-day trend: {latest['GOLD_trend_regime_30']:.0f}
+- 20-day volatility: {latest['GOLD_vol_20']:.4%}
 
-Rynek (kontekst):
-- VIX dzienny zwrot: {latest['CBOE_VIX_return']:.4%}
-- SPY zwrot 5-dniowy: {latest['SPY_return_5']:.4%}
-- Ropa WTI zwrot: {latest['WTI_return']:.4%}
-- DXY (dolar) zwrot: {latest['DXY_return']:.4%}
-- Tabela z cenami zlota oraz innych glownych indeksow za ostatnie 15 dni: {df_with_data_filtered.tail(15)}
+Market context:
+- VIX daily return: {latest['CBOE_VIX_return']:.4%}
+- SPY 5-day return: {latest['SPY_return_5']:.4%}
+- WTI Oil return: {latest['WTI_return']:.4%}
+- DXY (dollar) return: {latest['DXY_return']:.4%}
+- Gold and main indices price table, last 15 days: {df_with_data_filtered.tail(15)}
 """
 
 
@@ -142,12 +142,12 @@ def ask_llm(*args) -> str:
 
 
 def get_news_context(question: str, n_results: int = 5) -> str:
-    """Odpytuje ChromaDB i zwraca sformatowany blok tekstu z artykułów pasujących do pytania."""
+    """Queries ChromaDB and returns a formatted text block from articles matching the question."""
     try:
         chunks = search(question, n_results=n_results)
         return format_context(chunks)
     except Exception as e:
-        logger.warning(f"RAG niedostępny: {e}")
+        logger.warning(f"RAG unavailable: {e}")
         return ""
 
 
@@ -181,9 +181,9 @@ def pipeline(qeury_from_users, rec_chat_history, id):
 
     news_context = get_news_context(users_qq)
     if news_context:
-        content = f"{users_qq}\n\nPowiązane artykuły analityczne:\n{news_context}"
+        content = f"{users_qq}\n\nRelated analytical articles:\n{news_context}"
         logger.debug(
-            f"Powiązane artykuły analityczne  :{news_context}\n w odpowiedzi na pytanie uzytkownika : {users_qq}"
+            f"Related analytical articles: {news_context}\n in response to user question: {users_qq}"
         )
 
     else:
@@ -217,7 +217,7 @@ def pre_pipeline():
 
     draft_chat_history = Chat_history()
 
-    logger.info("Pobieranie danych rynkowych...")
+    logger.info("Fetching market data...")
     df = fetch_latest_features()
     logger.debug(f"columns of the df used are : {df.columns}")
     logger.debug(f"tail of the df is :{df.tail(20)}")
@@ -226,25 +226,25 @@ def pre_pipeline():
     context = build_market_context(df, lgbm_signal)
     draft_chat_history.list_expansion(USER_CONTEXT)
 
-    logger.info("\n--- Kontekst wysłany do LLM ---")
+    logger.info("\n--- Context sent to LLM ---")
     logger.info(context)
-    question = "Model LGBM wydał rekomendację. Czy dane techniczne i makro ją potwierdzają czy przeczą? Uzasadnij."
+    question = "The LGBM model issued a recommendation. Do the technical and macro data confirm or contradict it? Justify."
 
-    logger.info("Pobieram kontekst z artykułów (RAG)...")
+    logger.info("Fetching article context (RAG)...")
     news_context = get_news_context("gold price outlook macro factors dollar inflation")
     logger.info(
-        f"RAG zwrócił kontekst:\n{news_context[:300]}..."
+        f"RAG returned context:\n{news_context[:300]}..."
         if news_context
-        else "RAG: brak artykułów w bazie"
+        else "RAG: no articles in database"
     )
 
     users_input = define_users_input(
         role="user",
-        content=f"Oto aktualne dane rynkowe:\n{context}\n\nKontekst z artykułów analitycznych:\n{news_context}\n\nPytanie: {question}",
+        content=f"Here is the current market data:\n{context}\n\nContext from analytical articles:\n{news_context}\n\nQuestion: {question}",
     )
     draft_chat_history.list_expansion(users_input)
 
-    logger.info("\n--- Analiza LLM ---")
+    logger.info("\n--- LLM analysis ---")
     response_from_llm = ask_llm(USER_CONTEXT, users_input)
     logger.info(response_from_llm)
     converted_resposne = define_users_input(role="assistant", content=response_from_llm)
@@ -260,47 +260,6 @@ if __name__ == "__main__":
     from src.logging_config import setup_logging
 
     setup_logging(level=logging.DEBUG)
-
-    # draft_chat_history = Chat_history()
-
-    # logger.info("Pobieranie danych rynkowych...")
-    # df = fetch_latest_features()
-    # logger.debug(f"columns of the df used are : {df.columns}")
-    # logger.debug(f"head of the df is :{df.head(20)}")
-
-    # lgbm_signal = get_lgbm_signal(df)
-    # context = build_market_context(df, lgbm_signal)
-    # draft_chat_history.list_expansion(USER_CONTEXT)
-
-    # logger.info("\n--- Kontekst wysłany do LLM ---")
-    # logger.info(context)
-    # question = "Model LGBM wydał rekomendację. Czy dane techniczne i makro ją potwierdzają czy przeczą? Uzasadnij."
-
-    # logger.info("Pobieram kontekst z artykułów (RAG)...")
-    # news_context = get_news_context("gold price outlook macro factors dollar inflation")
-    # logger.info(
-    #     f"RAG zwrócił kontekst:\n{news_context[:300]}..."
-    #     if news_context
-    #     else "RAG: brak artykułów w bazie"
-    # )
-
-    # users_input = define_users_input(
-    #     role="user",
-    #     content=f"Oto aktualne dane rynkowe:\n{context}\n\nKontekst z artykułów analitycznych:\n{news_context}\n\nPytanie: {question}",
-    # )
-    # draft_chat_history.list_expansion(users_input)
-
-    # logger.info("\n--- Analiza LLM ---")
-    # response_from_llm = ask_llm(USER_CONTEXT, users_input)
-    # logger.info(response_from_llm)
-    # converted_resposne = define_users_input(role="assistant", content=response_from_llm)
-    # draft_chat_history.list_expansion(converted_resposne)
-
-    # logger.info("\n--- summary of conversation in  LLM ---")
-    # draft_chat_history.return_list_chat_history
-
     id_received, draft_chat_history = pre_pipeline()
     users_query = users_input_text()
     pipeline(users_query, draft_chat_history, id_received)
-
-# czy sytuacja makroekonimczna i polityczna zacheca do inwestycji w zloto ?
