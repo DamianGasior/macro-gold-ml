@@ -13,7 +13,7 @@ from src.ml_work.feature_engineering.feature_engineering_regression_lgbm import 
     FeatureRegressionEngineeringLGBMR,
 )
 from src.pipeline.pipeline import DataPipeline
-from src.pipeline.utils import SYMBOL_MAPPINGS
+from src.pipeline.utils import SYMBOL_MAPPINGS, TWELVE_DATA, FRED
 from src.llm.gold_analysis import pre_pipeline, pipeline
 from src.llm.chat import Chat_history
 
@@ -89,37 +89,11 @@ def get_latest_features() -> pd.DataFrame:
         return _cache["data"]
 
     # Twelve Data: ceny rynkowe (ETF, surowce, krypto)
-    twelve_symbols = deque(
-        [
-            "GLD",
-            "SPY",
-            "USO",
-            "BNO",
-            "BTC/USD",
-            "EUR/USD",
-            "GBP/USD",
-            "USD/CHF",
-            "USD/JPY",
-            "USD/SEK",
-            "USD/CAD",
-        ]
-    )
+    twelve_symbols = deque(TWELVE_DATA)
     twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 200)
 
     # FRED: waluty, VIX, wskaźniki makro
-    fred_symbols = deque(
-        [
-            # "DEXUSEU",
-            # "DEXUSUK",
-            # "DEXSZUS",
-            # "DEXJPUS",
-            # "DEXSDUS",
-            # "DEXCAUS",
-            "VIXCLS",
-            "USEPUINDXD",
-            "INFECTDISEMVTRACKD",
-        ]
-    )
+    fred_symbols = deque(FRED)
     fred_data = DataPipeline().run_requests(fred_symbols, "fred", SYMBOL_MAPPINGS, 500)
 
     merged = Multiple_df_manager()
@@ -142,6 +116,13 @@ def get_latest_features() -> pd.DataFrame:
 # uruchomienie lokalne:
 # source venv/bin/activate && uvicorn src.api.app:app --reload --port 8000
 # dokumentacja: http://localhost:8000/docs
+
+
+@app.on_event("startup")
+def startup_event():
+    logger.info("Startup: pre-warming cache...")
+    get_latest_features()
+    logger.info("Startup: cache ready")
 
 
 @app.get("/health")
