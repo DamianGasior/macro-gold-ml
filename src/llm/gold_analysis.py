@@ -12,7 +12,7 @@ from src.llm.chat import Chat_history
 from src.llm.rag.retriever import search, format_context
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from src.pipeline.utils import SYMBOL_MAPPINGS
+from src.pipeline.utils import SYMBOL_MAPPINGS, TWELVE_DATA, FRED
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ feature_columns = joblib.load("models/feature_columns.pkl")
 USER_CONTEXT = {
     "role": "system",
     "content": """Jesteś analitykiem rynku złota z perspektywą średnio i długoterminową.
-Interpretujesz dane techniczne i makroekonomiczne dotyczące ETF na złoto (GLD).
+Interpretujesz dane techniczne i makroekonomiczne dotyczące XAU/USD (spot złoto).
 
 Zasady:
 - Opieraj się wyłącznie na dostarczonych danych
@@ -44,22 +44,10 @@ Zasady:
 
 
 def fetch_latest_features():
-    twelve_symbols = deque(["GLD", "SPY", "USO", "BNO", "BTC/USD"])
+    twelve_symbols = deque(TWELVE_DATA)
     twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 200)
 
-    fred_symbols = deque(
-        [
-            "DEXUSEU",
-            "DEXUSUK",
-            "DEXSZUS",
-            "DEXJPUS",
-            "DEXSDUS",
-            "DEXCAUS",
-            "VIXCLS",
-            "USEPUINDXD",
-            "INFECTDISEMVTRACKD",
-        ]
-    )
+    fred_symbols = deque(FRED)
     fred_data = DataPipeline().run_requests(fred_symbols, "fred", SYMBOL_MAPPINGS, 500)
 
     merged = Multiple_df_manager()
@@ -67,8 +55,8 @@ def fetch_latest_features():
     merged.multiple_df_manager_pipeline(fred_data)
 
     fe = FeatureRegressionEngineeringLGBMR()
-    fe.feature_enginerring_pipeline(merged.return_df)
-    return fe.return_dataframe.dropna()
+    fe.feature_enginerring_pipeline(merged.df)
+    return fe.df.dropna()
 
 
 def get_lgbm_signal(df) -> dict:
@@ -79,6 +67,15 @@ def get_lgbm_signal(df) -> dict:
 
 
 def build_market_context(df, lgbm_signal: dict) -> str:
+    logger.debug(f"Received data is :{df}")
+    columns = list(SYMBOL_MAPPINGS.values())
+    logger.debug(f"Latest columns are :{columns}")
+
+    df_with_data = df.copy()
+    df_with_data_ = df_with_data[columns]
+    df_with_data_filtered = df_with_data_
+    logger.debug(f"df_with_data_filtered :{df_with_data_filtered.tail(15)}")
+
     latest = df.iloc[-1]
     date = df.index[-1]
     logger.info(f"Latest data are available for date :{date}")
@@ -92,7 +89,7 @@ Sygnał modelu LGBM:
 - Rekomendacja: {lgbm_signal['prediction']}
 - Prawdopodobieństwo (long): {lgbm_signal['probability']:.1%}
 
-Złoto (GLD):
+XAU/USD (spot złoto):
 - Dzienny zwrot: {latest['GOLD_return']:.4%}
 - Zwrot 5-dniowy: {latest['GOLD_return_5']:.4%}
 - Zwrot 20-dniowy: {latest['GOLD_return_20']:.4%}
@@ -107,6 +104,7 @@ Rynek (kontekst):
 - SPY zwrot 5-dniowy: {latest['SPY_return_5']:.4%}
 - Ropa WTI zwrot: {latest['WTI_return']:.4%}
 - DXY (dolar) zwrot: {latest['DXY_return']:.4%}
+- Tabela z cenami zlota oraz innych glownych indeksow za ostatnie 15 dni: {df_with_data_filtered.tail(15)}
 """
 
 
@@ -222,7 +220,7 @@ def pre_pipeline():
     logger.info("Pobieranie danych rynkowych...")
     df = fetch_latest_features()
     logger.debug(f"columns of the df used are : {df.columns}")
-    logger.debug(f"head of the df is :{df.head(20)}")
+    logger.debug(f"tail of the df is :{df.tail(20)}")
 
     lgbm_signal = get_lgbm_signal(df)
     context = build_market_context(df, lgbm_signal)
@@ -301,8 +299,8 @@ if __name__ == "__main__":
     # logger.info("\n--- summary of conversation in  LLM ---")
     # draft_chat_history.return_list_chat_history
 
-    draft_chat_history = pre_pipeline()
+    id_received, draft_chat_history = pre_pipeline()
     users_query = users_input_text()
-    pipeline(users_query, draft_chat_history)
+    pipeline(users_query, draft_chat_history, id_received)
 
 # czy sytuacja makroekonimczna i polityczna zacheca do inwestycji w zloto ?

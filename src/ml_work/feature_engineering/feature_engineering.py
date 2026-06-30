@@ -14,7 +14,7 @@ class FeatureEngineering:
         self._dataframe = pd.DataFrame()
 
     @property
-    def fe_dataframe(self) -> pd.DataFrame:
+    def dataframe(self) -> pd.DataFrame:
         return self._dataframe
 
     def currency_features(self, dataframe, *args):

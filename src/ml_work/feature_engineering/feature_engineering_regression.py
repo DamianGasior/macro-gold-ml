@@ -29,7 +29,7 @@ class FeatureRegressionEngineering:
         self._df = pd.DataFrame()
 
     @property
-    def return_dataframe(self) -> pd.DataFrame:
+    def df(self) -> pd.DataFrame:
         return self._df
 
     def feature_enginerring_pipeline(self, dataframe):

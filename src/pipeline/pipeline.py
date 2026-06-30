@@ -1,5 +1,6 @@
 from collections import deque
-from src.pipeline.utils import SYMBOL_MAPPINGS
+from src.pipeline.utils import SYMBOL_MAPPINGS, TWELVE_DATA, FRED
+import logging
 
 import pandas as pd
 
@@ -18,7 +19,7 @@ from src.ml_work.lgm_classifier.lgbm_classification import LGBMClassifier_model
 from .base_api_request import BaseAPIProvider
 from .base_single_transformer import BaseDataTransformer
 
-# dataframes_list = Multiple_df_manager()
+logger = logging.getLogger(__name__)
 
 
 class DataPipeline:
@@ -41,7 +42,7 @@ class DataPipeline:
         # self._merged_asssets_dataframe = merged_asssets_dataframe
 
     @property
-    def merged_dataframe(self) -> pd.DataFrame:
+    def assets_combined_dataframes(self) -> pd.DataFrame:
         # print("taking the details from property")
         # print(self._assets_combined_dataframes.head(15))
         # print(type(self._assets_combined_dataframes))
@@ -66,7 +67,7 @@ class DataPipeline:
             )
             pipeline.run_api_requests(columns)
 
-        return shared_dataframes_list.return_df
+        return shared_dataframes_list.df
 
     def run_api_requests(self, columns):
         api_request = self.provider.execute_full_request()
@@ -75,7 +76,7 @@ class DataPipeline:
             self.data_transformer.to_dataframe()
         )
         print("symbol_processing:", self.symbol)
-        self._assets_combined_dataframes = self.dataframes_list.return_df
+        self._assets_combined_dataframes = self.dataframes_list.df
         print(type(self._assets_combined_dataframes))
         print((self._assets_combined_dataframes.tail(10)))
         self._assets_combined_dataframes = Multiple_df_manager.rename_columns_in_df(
@@ -87,44 +88,11 @@ class DataPipeline:
 
         def req_details(size_twelve, size_fred):
 
-            symbol_td_deque = deque(["GLD", "SPY", "USO", "BNO", "BTC/USD"])  # "EWG"
+            symbol_td_deque = deque(TWELVE_DATA)  # "EWG"
             twelve_req = DataPipeline()
             twelve_req = self.run_requests(symbol_td_deque, "twelve", SYMBOL_MAPPINGS, size_twelve)
 
-            symbol_fred_deque = deque(
-                [
-                    "DEXUSEU",
-                    # "DEXCHUS",
-                    "DEXUSUK",
-                    "DEXSZUS",
-                    # "DEXHKUS",
-                    "DEXJPUS",
-                    "DEXSDUS",
-                    "DEXCAUS",
-                    # "DGS10",
-                    # "DGS5",
-                    # "REAINTRATREARAT10Y",
-                    # "USEPUINDXD",
-                    # "IR3TIB01USM156N",
-                    # "CPIAUCSL",
-                    # "WALCL",
-                    "VIXCLS",
-                    # "GVZCLS",
-                    # "VXVCLS",
-                    # "OVXCLS",
-                    # "VXTYN",
-                    # "AAAFF",
-                    # "T10Y2Y",
-                    # "T10Y3M",
-                    # "T5YFF",
-                    # "EXPINF1YR",
-                    # "EXPINF2YR",
-                    # "EXPINF5YR",
-                    # "EXPINF10YR"      ,
-                    "USEPUINDXD",
-                    "INFECTDISEMVTRACKD",
-                ]
-            )
+            symbol_fred_deque = deque(FRED)
             fred_req = DataPipeline()
             fred_req = self.run_requests(symbol_fred_deque, "fred", SYMBOL_MAPPINGS, size_fred)
 
@@ -137,10 +105,16 @@ class DataPipeline:
 
         # merging the two dataframes with all the prices from api providers
         general_object = Multiple_df_manager()
+        logger.debug(f"df_final head td :{twelve_req.head(10)}")
+        logger.debug(f"df_final tail td :{twelve_req.tail(10)}")
+
+        logger.debug(f"df_final head fred :{fred_req.head(10)}")
+        logger.debug(f"df_final tail fred :{fred_req.tail(10)}")
+
         general_object.multiple_df_manager_pipeline(twelve_req)
         general_object.multiple_df_manager_pipeline(fred_req)
-
-        df_final = general_object.return_df
+        # fred has missing data, need to check which one exactly
+        df_final = general_object.df
 
         # this feature_dataframe_regression is for both random forest models [regression and classification]
         # feature_dataframe_regression = FeatureRegressionEngineering()
@@ -169,7 +143,7 @@ class DataPipeline:
 
         classificaation_datframe_lgbmr = LGBMClassifier_model()
         classificaation_datframe_lgbmr.classification_model_pipeline(
-            feature_dataframe_regression_lgbmr.return_dataframe
+            feature_dataframe_regression_lgbmr.df
         )
         classificaation_datframe_lgbmr.save_model()
         # classificaation_datframe_lgbmr.classification_time_split_model_pipeline(

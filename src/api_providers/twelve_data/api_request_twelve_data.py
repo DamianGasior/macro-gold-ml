@@ -5,6 +5,7 @@ from .single_tranformation import Data_transformation
 from ...pipeline.base_api_request import BaseAPIProvider
 import os
 from dotenv import load_dotenv
+import time
 
 # Global HTTP client with persistent caching (SQLite backend).
 # Caches responses for identical requests (same URL + params) for 2 hours
@@ -19,15 +20,41 @@ API_KEY = os.getenv(
 )  # picking up the right variable and taking the correct key
 
 
-def api_request_cached(parameters):
-    url = "https://api.twelvedata.com/time_series"
-    resp = session.get(url, params=parameters)
-    resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
-    return {
-        "from_cache": getattr(resp, "from_cache", False),
-        "data": resp.json(),
-        "status_code": resp.status_code,
-    }
+# def api_request_cached(parameters):
+#     url = "https://api.twelvedata.com/time_series"
+#     resp = session.get(url, params=parameters)
+#     resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
+#     return {
+#         "from_cache": getattr(resp, "from_cache", False),
+#         "data": resp.json(),
+#         "status_code": resp.status_code,
+#     }
+
+
+def api_request_cached(parameters, max_retries=8, base=2):
+    for attempt in range(max_retries):
+        logger.info(f"TwelveData. Request for: {parameters['symbol']}")
+        url = "https://api.twelvedata.com/time_series"
+        resp = session.get(url, params=parameters)
+        if resp.status_code != 429:
+            resp.raise_for_status()  # its a ready method from 'requests' module, where following htpp responses 400 <= resp.status_code < 600 are checked
+            return {
+                "from_cache": getattr(resp, "from_cache", False),
+                "data": resp.json(),
+                "status_code": resp.status_code,
+            }
+        else:
+            # example response:
+            # {"code":429,"message":"You have run out of API credits for the current minute.
+            # 10 API credits were used, with the current limit being 8.
+            # Wait for the next minute or consider switching to a higher tier plan at https://twelvedata.com/pricing","status":"error"}
+            wait = base**attempt
+            time.sleep(wait)
+            logger.info(f"This is the following attempt: {attempt}, waiting for :  {wait} seconds")
+
+    raise Exception(
+        f"TwelveData rate limit: exceeded {max_retries} amount of attempts for {parameters['symbol']}"
+    )
 
 
 class Underlying_twelve_data_reuquest(BaseAPIProvider):

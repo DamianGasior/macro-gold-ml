@@ -60,11 +60,11 @@ class ChatRequest(BaseModel):
     question: str
     uuid: str | None = None
 
-    @property
-    def id_check(self):
-        logger.info(f"self.uuid is : {self.uuid}")
-        logger.info(f"self.uuid is type: {type(self.uuid)}")
-        return self.uuid
+    # @property
+    # def id_check(self):
+    #     logger.info(f"self.uuid is : {self.uuid}")
+    #     logger.info(f"self.uuid is type: {type(self.uuid)}")
+    #     return self.uuid
 
 
 class ChatResponse(BaseModel):
@@ -89,18 +89,32 @@ def get_latest_features() -> pd.DataFrame:
         return _cache["data"]
 
     # Twelve Data: ceny rynkowe (ETF, surowce, krypto)
-    twelve_symbols = deque(["GLD", "SPY", "USO", "BNO", "BTC/USD"])
+    twelve_symbols = deque(
+        [
+            "GLD",
+            "SPY",
+            "USO",
+            "BNO",
+            "BTC/USD",
+            "EUR/USD",
+            "GBP/USD",
+            "USD/CHF",
+            "USD/JPY",
+            "USD/SEK",
+            "USD/CAD",
+        ]
+    )
     twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 200)
 
     # FRED: waluty, VIX, wskaźniki makro
     fred_symbols = deque(
         [
-            "DEXUSEU",
-            "DEXUSUK",
-            "DEXSZUS",
-            "DEXJPUS",
-            "DEXSDUS",
-            "DEXCAUS",
+            # "DEXUSEU",
+            # "DEXUSUK",
+            # "DEXSZUS",
+            # "DEXJPUS",
+            # "DEXSDUS",
+            # "DEXCAUS",
             "VIXCLS",
             "USEPUINDXD",
             "INFECTDISEMVTRACKD",
@@ -111,7 +125,7 @@ def get_latest_features() -> pd.DataFrame:
     merged = Multiple_df_manager()
     merged.multiple_df_manager_pipeline(twelve_data)
     merged.multiple_df_manager_pipeline(fred_data)
-    df_final = merged.return_df
+    df_final = merged.df
 
     fe = FeatureRegressionEngineeringLGBMR()
     fe.feature_enginerring_pipeline(df_final)
@@ -171,12 +185,14 @@ def predict():
 def chat(request: ChatRequest):
     logger.debug(f"request.question is:{request.question}")
     logger.debug(f"request.uuid is:{request.uuid}")
-    session_id = request.id_check
+    session_id = request.uuid
+    logger.info(f"request.uuid is : {request.uuid}")
+    logger.info(f"request.uuid is type: {request.uuid}")
     # for key in  _chat_sessions.keys():
     #     logger.debug(f"key iin chat session is:{key}")
 
     # wykorzystac _cache:
-    if request.id_check is None:
+    if request.uuid is None:
         id, chat_history = pre_pipeline()
         # logger.debug(f"request.id:{id}")
         # logger.debug(f"request.id:{type(id)}")
@@ -199,12 +215,12 @@ def chat(request: ChatRequest):
         _chat_sessions[request.uuid] = full_chat_history
         logger.debug(f"full_chat_history:{full_chat_history}")
         logger.debug(f"full_chat_history type:{type(full_chat_history)}")
-        # logger.debug(f"request.uuid:{request.id_check}")
-        return ChatResponse(response=answer_from_model, uuid=str(request.id_check))
+        # logger.debug(f"request.uuid:{request.uuid}")
+        return ChatResponse(response=answer_from_model, uuid=str(request.uuid))
 
-        # id = request.id_check
+        # id = request.uuid
     elif _chat_sessions.get(session_id) is not None:
-        print(session_id)  # bd6a0a83-6d2e-45a3-8d94-1b42c62014f5
+        logger.debug(session_id)  # bd6a0a83-6d2e-45a3-8d94-1b42c62014f5
         # if test_id in _chat_sessions:
         #     print('true_key')
         users_query = request.question
@@ -227,7 +243,7 @@ def chat(request: ChatRequest):
 
         _chat_sessions[request.uuid] = full_chat_history
 
-        return ChatResponse(response=answer_from_model, uuid=str(request.id_check))
+        return ChatResponse(response=answer_from_model, uuid=str(request.uuid))
 
     else:
         return "No solution yet"

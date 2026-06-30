@@ -50,28 +50,23 @@ class Classification_model:
         self._proba: np.ndarray | None = None
 
     @property
-    def return_combined_dataframe(self) -> pd.DataFrame():
-
+    def combined_dataframe(self) -> pd.DataFrame():
         return self._combined_dataframe
 
     @property
-    def return_X_train(self):
+    def X_train(self):
         return self._X_train
 
     @property
-    def return_y_train(self):
+    def y_train(self):
         return self._y_train
 
     @property
-    def return_x(self):
+    def x(self):
         return self._x
 
     @property
-    def return_y_pred(self):
-        return self._y_pred
-
-    @property
-    def return_model_f_reg(self):
+    def model_forest_class(self):
         return self._model_forest_class
 
     def combine_dataframes(self, raw_data_df, feature_df):

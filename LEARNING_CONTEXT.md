@@ -59,50 +59,119 @@ Projekt: `macro-gold-ml` — model LGBM przewidujący kierunek ceny złota (long
 
 > Poniższe tematy mają przekroczone `next_due`. Zacznij od nich zanim przejdziemy do nowego materiału.
 
-### 1. Docker (next_due: 2026-06-01 — ZALEGŁY)
+### 1. Docker (next_due: 2026-06-17 — ZALEGŁY, ostatni wynik: 38%)
 1. Jaka jest różnica między `docker build` a `docker run`?
 2. Dlaczego w Dockerfile kopiujemy `requirements.txt` PRZED kodem aplikacji?
 3. Co robi flaga `-p 8000:8000` w `docker run -p 8000:8000 gold-api`?
 4. Czy obraz (image) może sam przyjmować requesty HTTP bez `docker run`?
 5. Co się stanie z obrazem jeśli kontener crashuje na Azure?
 
-### 2. FastAPI — model poza endpointem (next_due: 2026-06-02 — ZALEGŁY)
-1. Dlaczego `joblib.load()` ładujemy poza funkcją endpointu, a nie wewnątrz?
-2. Jaki wzorzec łączy `joblib.load` poza endpointem z cache'owaniem odpowiedzi API?
+UWAGA: quiz zdany 5/5 w maju, ale 2026-06-13 wynik spadł do ~38% — wiedza wyparowała bez powtórki.
 
-### 3. Embeddingi — teoria (next_due: 2026-06-02 — ZALEGŁY, ostatni wynik: 60%)
-1. Co to list comprehension? Przepisz `[item.embedding for item in response.data]` jako klasyczną pętlę for.
-2. Dlaczego nie podajemy całego dokumentu jako jednego embeddingu zamiast kroić na chunki? (dwa powody)
-3. Dlaczego modele embeddingowe mają limit tokenów — jaka jest matematyczna przyczyna?
-4. Co to token? Czy token = słowo? Podaj przykład tokenizacji.
-5. Ile liczb ma wektor `text-embedding-3-small`?
-6. Na czym polega agregacja (mean pooling) — jak z N wektorów tokenów powstaje 1 wektor chunka?
-7. Jaki jest zakres wartości w wektorze embeddingowym i dlaczego?
-8. Co to cosine similarity — co oznacza 0.0, 1.0, -1.0?
-9. Jakim mechanizmem uczono modele embeddingowe? Co to Masked Language Model?
-10. Czy wymiar_42 wektora odpowiada konkretnemu słowu lub pojęciu?
+Luki do poprawy (2026-06-13):
+- build vs run: build (z Dockerfile) tworzy OBRAZ = zamrożony szablon, nic nie działa.
+  run tworzy z obrazu KONTENER = żywą instancję, dopiero tu startuje apka. 1 obraz → wiele kontenerów.
+- requirements PRZED kodem: chodzi o CACHE WARSTW, nie o "potrzebne moduły". Każda linia Dockerfile
+  = warstwa, Docker cache'uje niezmienione warstwy. requirements (rzadko zmienne) na górze —
+  zmiana kodu nie unieważnia ciężkiej warstwy pip install. Zasada: rzadko zmienne na górę, często na dół.
+- -p 8000:8000 = port mapping. Lewa = port HOSTA, prawa = port w KONTENERZE. NIE muszą być równe
+  (-p 9000:8000 OK). Przebija tunel do izolowanego kontenera.
+- Obraz a HTTP: NIE może przyjmować requestów — to martwy plik, żaden proces nie żyje.
+  Tylko KONTENER (z uruchomionym uvicorn) nasłuchuje na porcie.
+- Crash a obraz: obraz ZOSTAJE nienaruszony (odwrotnie niż myślałem). Crash zabija instancję,
+  szablon leży nietkniętym — ACI bierze ten sam obraz i odpala nowy kontener. Obraz = źródło prawdy.
 
-### 4. Web scraping + RAG chunking + sitemap XML (next_due: 2026-06-02 — ZALEGŁY, ostatni wynik: 64%)
-1. Co to CSS selector i co zwraca `soup.select("div.article-text-link a")`?
-2. Jaka różnica między stroną statyczną a dynamiczną (JS-rendered)? Jak Python `requests` radzi sobie z każdą?
-3. Dlaczego kroimy tekst na chunki zamiast podać cały artykuł do LLM?
-4. Co to overlapping chunks i jaki problem rozwiązują?
-5. Co robi `tag.decompose()` w BeautifulSoup?
-6. Jaka różnica między `soup.select()` a `soup.select_one()`?
-7. Co znaczy `max_articles: int = 5` w sygnaturze funkcji — kiedy użyje wartości 5?
-8. Co to sitemap XML i kto go tworzy?
-9. Dlaczego sitemap rozwiązał problem z JS-rendered listing page, skoro artykuły też są na tej samej domenie?
+---
 
-### 5. HTTP headers — User-Agent (next_due: 2026-06-01 — ZALEGŁY, bez quizu)
+## Quizy aktualne (nie zaległe)
+
+### HTTP headers — User-Agent (next_due: 2026-06-17, PRZEROBIONY TEORETYCZNIE — bez quizu)
 1. Co to HTTP header i czemu służy w zapytaniu GET?
 2. Co to `User-Agent` — jaką informację przekazuje serwerowi?
 3. Dlaczego serwer może zablokować zapytanie bez `User-Agent`?
 4. Jak przekazujesz własne headers do `requests.get()`? Pokaż składnię.
 5. Czy wszystkie strony wymagają podrobionego `User-Agent`?
 
----
+2026-06-13: Damian nie umiał odpowiedzieć, więc materiał WYŁOŻONY (nie odpytany) — brak wyniku %.
+Do realnego quizu ~2026-06-17 (razem z powtórką Dockera). Notatki:
+- HTTP header = para klucz-wartość z metadanymi O zapytaniu (kto pyta, jakim narzędziem, jaki język/
+  format). "Koperta z adnotacjami" wokół właściwego żądania. Serwer czyta headers zanim odpowie.
+- User-Agent = nagłówek mówiący CZYM jest klient (przeglądarka/system/wersja). requests domyślnie wysyła
+  "python-requests/2.31.0" — serwer od razu widzi, że to skrypt, nie człowiek.
+- Blokada: serwery broniące się przed botami widzą python-requests lub brak UA — 403 / pusta strona /
+  captcha. Podstawiasz UA przeglądarki, by request wyglądał jak ruch człowieka.
+- Składnia: headers = {"User-Agent": "Mozilla/5.0 ..."}; requests.get(url, headers=headers).
+  Słownik, można dodać więcej (np. "Accept-Language": "en-US").
+- NIE każda strona wymaga: wiele (zwł. statycznych/przyjaznych) odda treść bez sztuczek. UA podstawiasz
+  tylko gdy serwer filtruje boty. Praktyka: najpierw bez, przy 403/pustce dorzuć nagłówek. Kwestia etykiety
+  (robots.txt) — udawanie przeglądarki bywa w szarej strefie.
 
-## Quizy aktualne (nie zaległe)
+### Web scraping + RAG chunking + sitemap XML (next_due: 2026-07-04, ostatni wynik: 72%)
+
+Quiz 9 pytań, dokończony 2026-06-13 (skok z 64% → 72%). Druga połowa znacznie lepsza niż pierwsza.
+
+Wyniki:
+- P1 (CSS selector): ⚠️ selektor wybiera ELEMENTY HTML (tagi), NIE tekst. `div.article-text-link a`
+  = wszystkie <a> WEWNĄTRZ diva o klasie article-text-link (spacja = potomek). Zwraca listę <a>.
+- P2 (statyczna vs dynamiczna): ⚠️ SEDNO: requests.get() pobiera HTML ale NIE wykonuje JS.
+  Statyczna = treść gotowa w HTML → requests widzi. Dynamiczna (JS-rendered) = pusty szkielet,
+  JS dociąga treść w przeglądarce → requests nie widzi artykułów. Problem na listing page Saxo/gold.org.
+- P3 (czemu chunki): ✅ sam przywołał N² (300×300). Powody: limit tokenów + N² + (c) precyzja retrievalu.
+- P4 (overlapping chunks): ✅ wzorowo — pokazał liczbowo (1-400, 300-700, 600-1000, overlap 100).
+  Temat/zdanie na granicy cięcia nie ginie, powtarza się w sąsiednich chunkach — ciągłość.
+- P5 (decompose): ⚠️ kierunek ODWRÓCONY — decompose() USUWA wskazany śmieciowy tag (script/style/
+  nav/footer), nie "zostawia chciane". Czyścisz śmieci PRZED .text.
+- P6 (select vs select_one): ✅ select() = lista wszystkich, select_one() = pierwszy (lub None).
+- P7 (max_articles: int = 5): ✅ argument domyślny, użyje 5 gdy nie podano, własna wartość nadpisuje.
+- P8 (sitemap XML): ✅ tworzy właściciel strony. Plik (sitemap.xml) z listą URL-i, pierwotnie dla
+  wyszukiwarek. Drobna korekta: zwykle URL-e (czasem data mod.), niekoniecznie tytuły.
+- P9 (sitemap vs JS-rendered) — KLUCZOWE, trafione: sitemap = statyczny plik serwowany wprost przez
+  serwer → requests dostaje pełną listę URL-i bez JS. Omija zepsutą (dla requests) listing page.
+  Same artykuły są statyczne → requests.get(url) widzi treść. JS był potrzebny tylko do listy, nie artykułów.
+
+>>> DO UTRWALENIA: selektor=elementy nie tekst (P1), requests NIE wykonuje JS (P2), decompose() USUWA tag (P5).
+
+### Embeddingi — teoria (next_due: 2026-06-20, ostatni wynik: 52%)
+
+Quiz 10 pytań, dokończony 2026-06-13 (wcześniej w toku 1-6, dziś 7-10).
+
+Wyniki:
+- P1 (list comprehension — pętla): ⚠️ pętla OK, zgubione `.embedding` (wrzucał cały `item`).
+  Reguła: [WYRAŻENIE for ZMIENNA in ŹRÓDŁO] → append(WYRAŻENIE), nie samej zmiennej.
+- P2 (czemu chunki, nie cały dokument): ✅ precyzja retrievalu (1 wektor = wąski temat).
+  Drugi powód: limit tokenów + N². Cały dokument = "uśredniona papka" tematów.
+- P3 (limit tokenów): ⚠️ kierunek OK, brak mechanizmu. SEDNO: self-attention = każdy-token-z-każdym
+  = N². Podwójna długość → 4× koszt. Stąd twardy limit (8191 dla 3-small).
+- P4 (token): ✅ token ≠ zawsze słowo (sunny → sun+ny). ~1 token → 4 znaki.
+- P5 (overlapping chunks): ✅ sens na granicy cięcia nie ginie, overlap powtarza fragment.
+- P6 (mean pooling): ⚠️ POWTÓRZYĆ — mylony z tokenizacją. Model daje 1 wektor NA KAŻDY token
+  (N wektorów), mean pooling uśrednia je kolumnami (liczba-po-liczbie) → 1 wektor chunka.
+  Działa na WEKTORACH, nie tokenach. Token=wejście, wektor=wyjście.
+- P7 (zakres wartości): ⚠️ POWTÓRZYĆ — pomylił z liczbą wymiarów (1536 to wymiar = P5, nie zakres).
+  Zakres KAŻDEJ liczby → od -1 do 1, bo wektory są znormalizowane (długość 1) → szybkie cosine.
+- P8 (cosine similarity): ⚠️ intuicja OK (podobieństwo z wektorów), brakowało: mierzy KĄT nie odległość.
+  1.0 = ta sama strona (max podobne), 0.0 = prostopadłe (brak związku), -1.0 = przeciwne.
+- P9 (MLM): ⚠️ POWTÓRZYĆ — nie pamiętał. Masked Language Model = maskujesz słowa w zdaniu, model
+  zgaduje zamaskowane z kontekstu. Miliardy powtórzeń → uczy się znaczeń (podobny kontekst → podobny wektor).
+- P10 (czy wymiar = pojęcie): ✅ NIE — reprezentacja rozproszona (distributed), znaczenie rozłożone
+  po wszystkich 1536 wymiarach naraz, pojedynczy wymiar nieczytelny dla człowieka.
+
+>>> DO KONIECZNEJ POWTÓRKI: P6 mean pooling, P7 zakres+normalizacja, P9 MLM. Utrwalić N² i wartości cosine.
+
+### FastAPI — model poza endpointem (next_due: 2026-06-20, ostatni wynik: 65%)
+1. Dlaczego `joblib.load()` ładujemy poza funkcją endpointu? — ZROZUMIANE (po naprowadzeniu)
+2. Wzorzec łączący ładowanie modelu z cache odpowiedzi — ⚠️ idea OK, brakowało nazwy
+
+Domknięte 2026-06-13:
+- Model poza funkcją = ładuje się 1× przy starcie aplikacji; wewnątrz funkcji = przy KAŻDYM
+  requeście (100 req = 100× joblib.load ~2s). Niezależne od Dockera/Azure — działa tak samo lokalnie.
+- A) załaduj model raz ≠ C) cache wyników predykcji — dwie OSOBNE optymalizacje, nie jedna.
+- Wspólna zasada = caching / space-time tradeoff (pamięć w zamian za czas).
+- Caching vs memoization: memoizacja = cache wyników CZYSTEJ funkcji po jej argumentach
+  (determinizm, te same argumenty → ten sam wynik, brak TTL). Caching ogólny = dowolna kosztowna
+  operacja (DB, API, plik), zwykle z TTL/invalidacją.
+- Cache cen złota (Twelve Data, TTL 12h) = CACHING, NIE memoizacja (klucz "gold" stały, cena zmienna).
+- Termin na rozmowy: space-time tradeoff.
 
 ### GitHub Actions / Azure secrets (next_due: 2026-06-09, ostatni wynik: 90%)
 1. Opisz cały łańcuch: jak wartość z GitHub Secrets trafia do `os.getenv()` w kontenerze na Azure?

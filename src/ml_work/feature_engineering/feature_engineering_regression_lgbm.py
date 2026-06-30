@@ -32,14 +32,16 @@ class FeatureRegressionEngineeringLGBMR:
         self._df = pd.DataFrame()
 
     @property
-    def return_dataframe(self) -> pd.DataFrame:
+    def df(self) -> pd.DataFrame:
         return self._df
 
     def feature_enginerring_pipeline(self, dataframe):
-        df = dataframe
+        # df = dataframe
+        logger.debug(f"dataframe for dxy used head:{dataframe.head(10)}")
+        logger.debug(f"dataframe for dxy used tail :{dataframe.tail(10)}")
 
         dataframe_dxy = self.dxy_builder(dataframe)
-        self._df = self.dataframe_join_builder(dataframe_dxy, df)
+        self._df = self.dataframe_join_builder(dataframe_dxy, dataframe)
 
         self._df = self.basic_metrics(VIX_SYMBOLS, ETF, COMM, DXY, BASE_UNDERLYING)
         self._df = self.basic_metrics2(ECONOMIC_SENTIMENT)

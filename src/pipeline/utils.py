@@ -1,7 +1,25 @@
 import numpy as np
 
+TWELVE_DATA = [
+    "XAU/USD",
+    "SPY",
+    "USO",
+    "BNO",
+    "BTC/USD",
+    "EUR/USD",
+    "GBP/USD",
+    "USD/CHF",
+    "USD/JPY",
+    "USD/SEK",
+    "USD/CAD",
+]
+
+FRED = ["VIXCLS", "USEPUINDXD", "INFECTDISEMVTRACKD"]
+
+
 BASE_UNDERLYING = {
-    "GLD": "GOLD",
+    # "GLD": "GOLD",
+    "XAU/USD": "GOLD",
 }
 
 OTHER = {"WALCL": "US_TotalAssets"}
@@ -18,15 +36,22 @@ VIX_SYMBOLS = {
 
 
 CCY_SYMBOLS = {
-    "DEXSDUS": "USD_SEK",
-    "DEXCAUS": "USD_CAD",
-    "DEXUSEU": "EUR_USD",
-    # "DEXCHUS": "CNH_USD",
-    "DEXUSUK": "GBP_USD",
-    "DEXSZUS": "USD_CHF",
-    # "DEXHKUS": "HKD_USD",
-    "DEXJPUS": "USD_JPY",
+    # "DEXSDUS": "USD_SEK",
+    # "DEXCAUS": "USD_CAD",
+    # "DEXUSEU": "EUR_USD",
+    # # "DEXCHUS": "CNH_USD",
+    # "DEXUSUK": "GBP_USD",
+    # "DEXSZUS": "USD_CHF",
+    # # "DEXHKUS": "HKD_USD",
+    # "DEXJPUS": "USD_JPY",
+    "EUR/USD": "EUR_USD",
+    "GBP/USD": "GBP_USD",
+    "USD/CHF": "USD_CHF",
+    "USD/JPY": "USD_JPY",
+    "USD/SEK": "USD_SEK",
+    "USD/CAD": "USD_CAD",
 }
+
 RATES = {"DGS10": "US10Y", "DGS5": "US5Y", "IR3TIB01USM156N": "US_3M"}
 
 REAL_YIELDS = {"REAINTRATREARAT10Y": "US10Y_Real_IR"}
@@ -52,17 +77,23 @@ INFL_EXP = {
 CPI = {"CPIAUCSL": "CPI_US"}
 
 SYMBOL_MAPPINGS = {
-    # "EUR/USD": "EUR_USD",
+    "EUR/USD": "EUR_USD",
+    "GBP/USD": "GBP_USD",
+    "USD/CHF": "USD_CHF",
+    "USD/JPY": "USD_JPY",
+    "USD/SEK": "USD_SEK",
+    "USD/CAD": "USD_CAD",
     # "UUP" : "UUP",
-    "GLD": "GOLD",
+    # "GLD": "GOLD",
+    "XAU/USD": "GOLD",
     "SPY": "SPY",
-    "DGS10": "US10Y",
-    "DGS5": "US5Y",
+    # "DGS10": "US10Y",
+    # "DGS5": "US5Y",
     # "10yply.b": "PL10Y",
-    "CPIAUCSL": "CPI_US",
-    "IR3TIB01USM156N": "US_3M",
-    "REAINTRATREARAT10Y": "US10Y_Real_IR",
-    "WALCL": "US_TotalAssets",
+    # "CPIAUCSL": "CPI_US",
+    # "IR3TIB01USM156N": "US_3M",
+    # "REAINTRATREARAT10Y": "US10Y_Real_IR",
+    # "WALCL": "US_TotalAssets",
     # "EWG" : 'EWG',
     "USO": "WTI",
     "BNO": "BRENT",
@@ -72,26 +103,25 @@ SYMBOL_MAPPINGS = {
     #  "VIXY" : "MediumTermVolat",
     "VIXCLS": "CBOE_VIX",
     # "GVZCLS": "GOLD_VIX",
-    "VXVCLS": "CBOE_VIX_3M_S&P500",
-    "OVXCLS": "VIX_ON_OIL",
-    "VXTYN": "VIX_OM_US10Y",
-    "AAAFF": "Corp_AAa-FedFundsRate",
-    "T10Y2Y": "T10Y2Y",
-    "T10Y3M": "T10Y3M",
-    "T5YFF": "T5YFF",
-    "EXPINF1YR": "1Y_INFL_EXPECT",
-    "EXPINF2YR": "2Y_IFNL_EXPECT",
-    "EXPINF5YR": "5Y_INFL_EXPECT",
-    "EXPINF10YR": "10Y_IFNL_EXPECT",
-    "DEXUSEU": "EUR_USD",
+    # "VXVCLS": "CBOE_VIX_3M_S&P500",
+    # "OVXCLS": "VIX_ON_OIL",
+    # "VXTYN": "VIX_OM_US10Y",
+    # "AAAFF": "Corp_AAa-FedFundsRate",
+    # "T10Y2Y": "T10Y2Y",
+    # "T10Y3M": "T10Y3M",
+    # "T5YFF": "T5YFF",
+    # "EXPINF1YR": "1Y_INFL_EXPECT",
+    # "EXPINF2YR": "2Y_IFNL_EXPECT",
+    # "EXPINF5YR": "5Y_INFL_EXPECT",
+    # "EXPINF10YR": "10Y_IFNL_EXPECT",
+    # # "DEXUSEU": "EUR_USD",  # jest w td
     # "DEXCHUS": "CNH_USD",
-    "DEXUSUK": "GBP_USD",
-    "DEXSZUS": "USD_CHF",
+    # "DEXUSUK": "GBP_USD",    # jest w td
+    # "DEXSZUS": "USD_CHF",    # jest w td
     # "DEXHKUS": "HKD_USD",
-    "DEXJPUS": "USD_JPY",
-    "DEXSDUS": "USD_SEK",
-    "DEXCAUS": "USD_CAD",
-    "USEPUINDXD": "EconomicPolicyUncertainty",
+    # "DEXJPUS": "USD_JPY", # jest w td
+    # "DEXSDUS": "USD_SEK",  # jest w td
+    # "DEXCAUS": "USD_CAD", # jest w td
     "INFECTDISEMVTRACKD": "InfectiousDiseaseTracker",
 }
 

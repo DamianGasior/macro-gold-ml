@@ -17,7 +17,7 @@ class Report_Summary:
         # }
 
     @property
-    def return_summarized_results(self):
+    def summarized_results(self):
         return self._summarized_results
 
     def show_report(self):
