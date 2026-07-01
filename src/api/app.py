@@ -105,7 +105,7 @@ def get_latest_features() -> pd.DataFrame:
     fe.feature_enginerring_pipeline(df_final)
 
     # Bierzemy ostatni kompletny wiersz (najnowszy dzień bez NaN)
-    df_features = fe.return_dataframe.dropna()
+    df_features = fe.df.dropna()
     result = df_features[feature_columns].iloc[[-1]]
 
     _cache["data"] = result

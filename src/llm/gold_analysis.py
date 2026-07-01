@@ -45,7 +45,7 @@ Rules:
 
 def fetch_latest_features():
     twelve_symbols = deque(TWELVE_DATA)
-    twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 200)
+    twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 500)
 
     fred_symbols = deque(FRED)
     fred_data = DataPipeline().run_requests(fred_symbols, "fred", SYMBOL_MAPPINGS, 500)
@@ -201,7 +201,7 @@ def pipeline(qeury_from_users, rec_chat_history, id):
 
     updated_chat_history.expand_chat_with_id(id)
     # whole_context=updated_chat_history.return_chat_history_based_on_id(id)
-    whole_context = updated_chat_history.return_list_chat()
+    whole_context = updated_chat_history.conv_in_list
 
     logger.debug(f"chat_history:{whole_context}")
     logger.debug(f"chat_history type:{type(whole_context)}")
@@ -252,7 +252,7 @@ def pre_pipeline():
 
     logger.info("\n--- summary of conversation in  LLM ---")
     draft_chat_history.expand_chat_with_id(id_assigned)
-    list_of_chat_histry = draft_chat_history.return_list_chat_history()
+    list_of_chat_histry = draft_chat_history.conv_in_list
     return id_assigned, list_of_chat_histry
 
 

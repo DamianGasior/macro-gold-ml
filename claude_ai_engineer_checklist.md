@@ -70,7 +70,11 @@
 - [x] `POST /chat` — endpoint czatu z LLM + RAG ✅ (2026-06-05) — działa lokalnie i na Azure. `ChatRequest` (question + uuid), `ChatResponse` (response + uuid), historia per sesja w `_chat_sessions` dict (in-memory). UUID generowany w `pre_pipeline()`, zwracany do klienta, wysyłany przy kolejnych pytaniach.
   - **Debug w tej sesji:** UUID type mismatch — klucz w dict był `UUID object`, klient odsyłał `str` → fix: `str(id)` przy zapisie. Znaleziony przez breakpointy + Debug Console.
   - **Frontend:** `static/index.html` serwowany przez FastAPI (`StaticFiles` + `FileResponse`). Użytkownik otwiera `http://<url>/` — JavaScript wysyła POST do `/post/chat` za kulisami.
-- [ ] FastAPI startup event — cache pre-warming: `@app.on_event("startup")` wywołuje `index_site()` + `get_latest_features()` zanim serwer przyjmie pierwszy request
+- [x] FastAPI startup event — cache pre-warming: `@app.on_event("startup")` wywołuje `get_latest_features()` zanim serwer przyjmie pierwszy request ✅ (2026-06-30)
+  - `on_event("startup")` / `on_event("shutdown")` — dwie wartości; deprecated w nowszych FastAPI (nowy sposób: `lifespan`)
+  - `async def` nie wymagane — działa też zwykły `def`; `async` potrzebne tylko gdy w środku jest `await`
+  - łańcuch: `start.yml` → `az container start` → ACI → Docker CMD → uvicorn → startup hook → serwer gotowy
+  - **Quiz 2026-07-07** — zaplanowany
 
 **Quiz 2026-05-10 — wynik 4/5:**
 ✅ uvicorn (rola serwera HTTP)
