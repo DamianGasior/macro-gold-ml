@@ -27,11 +27,7 @@ class Data_transformation(BaseDataTransformer):
             pd.to_numeric, errors="coerce"
         )  # transform input data from the df to numeric values, if it can not be transfromed to numeric, then it popualted NaN
         dataframe = dataframe.dropna()  # it drops from the row above all NaN rows
-        logger.debug("symbol_processing:", self.symbol)
+        logger.debug(f"symbol_processing: {self.symbol}")
         dataframe_normalized = Multiple_df_manager.normalize_df(dataframe)
         self.dataframe = dataframe_normalized
-
-        return self.dataframe
-
-    def return_dataframe(self):
         return self.dataframe

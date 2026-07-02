@@ -16,8 +16,3 @@ class BaseDataTransformer(ABC):
         # returning self.dataframe
 
         pass
-
-    @abstractmethod
-    # returns self.dataframe which  neds to be pd.DataFrame()
-    def return_dataframe(self):
-        pass

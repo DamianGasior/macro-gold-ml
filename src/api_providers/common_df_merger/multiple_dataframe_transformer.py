@@ -45,9 +45,6 @@ class Multiple_df_manager:
         )  # joining those dataframes which have the same dates
         return self.concact_df
 
-    # def return_list(self):
-    #     return self.fx_list
-
     def multiple_df_manager_pipeline(self, passed_df):
         self.add_to_working_list(passed_df)
         self.list_concacenate()

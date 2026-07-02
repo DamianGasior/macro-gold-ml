@@ -11,23 +11,9 @@ from sklearn.metrics import log_loss, roc_auc_score
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMRegressor, LGBMClassifier
+from lightgbm import LGBMClassifier
 from src.ml_work.reports.report_summary import Report_Summary
 
-from src.pipeline.utils import (
-    SYMBOL_MAPPINGS,
-    BASE_UNDERLYING,
-    OTHER,
-    VIX_SYMBOLS,
-    CCY_SYMBOLS,
-    RATES,
-    REAL_YIELDS,
-    ETF,
-    RATE_DIFF,
-    INFL_EXP,
-    CPI,
-    CRYPTOS,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -101,38 +87,38 @@ class LGBMClassifier_model:
         self._proba_test: np.ndarray | None = None
         self._y_pred: np.ndarray | None = None
         self._lgbm_model: LGBMClassifier | None = None
-        self.pre_data: dict[str, object] = {}
+        self._pre_data: dict[str, object] = {}
 
     @property
-    def return_combined_dataframe(self) -> pd.DataFrame:
+    def combined_dataframe(self) -> pd.DataFrame:
         return self._combined_dataframe
 
     @property
-    def return_pre_data(self) -> dict:
-        return self.pre_data
+    def pre_data(self) -> dict:
+        return self._pre_data
 
     @property
-    def return_X_train(self):
+    def X_train(self):
         return self._X_train
 
     @property
-    def return_X_test(self):
+    def X_test(self):
         return self._X_test
 
     @property
-    def return_y_train(self):
+    def y_train(self):
         return self._y_train
 
     @property
-    def return_x(self):
+    def x(self):
         return self._x
 
     @property
-    def return_y_pred(self):
+    def y_pred(self):
         return self._y_pred
 
     @property
-    def return_model_f_reg(self):
+    def model_f_reg(self):
         return self._lgbm_model
 
     def combine_dataframes(self, feature_df):
@@ -205,7 +191,6 @@ class LGBMClassifier_model:
         and cumulative sum of importances.
         """
         importance = self._lgbm_model.feature_importances_
-        logger.debug(f"Feature importances: {importance}")
         df_imp = pd.DataFrame(
             {"feature": self._X_train.columns, "importance": importance}
         ).sort_values(by="importance", ascending=False)
@@ -574,9 +559,8 @@ class LGBMClassifier_model:
             self.shap_evaluation(count)
             # self.different_params_setup()
             self.evaluating_backtest_strategy()
-            print(self.return_pre_data)
             report.report_pipeline(self.pre_data)
-            print(report.show_report())
+            logger.debug(f"storing report : {report.show_report()}")
 
         logger.debug("End of the TimeSeriesSplit")
 

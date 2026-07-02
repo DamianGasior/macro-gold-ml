@@ -24,6 +24,3 @@ class Data_stooq_transformation(BaseDataTransformer):
         # print(dataframe)
         self.dataframe = dataframe
         return self.dataframe
-
-    def return_dataframe(self):
-        return self.dataframe

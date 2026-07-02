@@ -43,9 +43,6 @@ class DataPipeline:
 
     @property
     def assets_combined_dataframes(self) -> pd.DataFrame:
-        # print("taking the details from property")
-        # print(self._assets_combined_dataframes.head(15))
-        # print(type(self._assets_combined_dataframes))
         return self._assets_combined_dataframes
 
     def run_requests(self, symbol_deque, broker, columns, outputsize):
@@ -116,24 +113,6 @@ class DataPipeline:
         # fred has missing data, need to check which one exactly
         df_final = general_object.df
 
-        # this feature_dataframe_regression is for both random forest models [regression and classification]
-        # feature_dataframe_regression = FeatureRegressionEngineering()
-        # feature_dataframe_regression.feature_enginerring_pipeline(df_final)
-
-        # commenting out during Classification model being turned on
-
-        # regression_datframe = Regression_model()
-        # regression_datframe.regression_model_pipeline(
-        #     df_final, feature_dataframe_regression.return_dataframe
-        # )
-
-        # commenting out during Regreesion LGBMR is turned on
-
-        # classification_dataframe=Classification_model()
-        # classification_dataframe.classification_model_pipeline(
-        #     df_final, feature_dataframe_regression.return_dataframe
-        #     )
-
         # this is purely for LGBM model
         feature_dataframe_regression_lgbmr = FeatureRegressionEngineeringLGBMR()
         feature_dataframe_regression_lgbmr.feature_enginerring_pipeline(df_final)
@@ -146,9 +125,6 @@ class DataPipeline:
             feature_dataframe_regression_lgbmr.df
         )
         classificaation_datframe_lgbmr.save_model()
-        # classificaation_datframe_lgbmr.classification_time_split_model_pipeline(
-        #     feature_dataframe_regression_lgbmr.return_dataframe
-        # )
 
 
 def run_pipeline():
