@@ -240,3 +240,7 @@ src/ml_work/lgm_classifier/shap_summary/
 app_logs/*
 # !app_logs/.gitkeep - ignoruje wszystkie pliki poza .gitkeep (folder trafi do repo)
 !app_logs/.gitkeep
+
+# ignore mlflows files
+mlflow.db
+mlruns/
