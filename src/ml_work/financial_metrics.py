@@ -11,8 +11,7 @@ def calculate_cagr(dataframe, column_name):
     df = dataframe[column_name].dropna()
     trading_years = (df.index[-1] - df.index[0]).days / 365
     cagr = (df.iloc[-1] / df.iloc[0]) ** (1 / trading_years) - 1
-    logger.info(f"CAGR (compoound annual growth range) : {cagr:.3%}")
-    print(cagr)
+    logger.debug(f"CAGR (compoound annual growth range) : {cagr:.3%}")
     return cagr
 
 
@@ -29,9 +28,10 @@ def buy_and_hold_strateg(dataframe, column_name):
     start_price = dataframe[column_name].iloc[0]
     end_price = dataframe[column_name].iloc[-1]
     buy_hold = end_price / start_price - 1
-    logger.info(
+    logger.debug(
         f"BUY and HOLD returns is  : {buy_hold:.3%}; basically your return starting from trade date at trade price till today(latest available data)"
     )
+    return buy_hold
 
 
 def return_std(dataframe, column_name):
@@ -85,8 +85,39 @@ def dates_numbers(dataframe, column_name):
         f"Last date to be considered as no trade or trade: {dataframe[column_name].last_valid_index()}"
     )
     counts2 = dataframe[column_name].value_counts()
-    counts_true = counts2[1.0]
-    counts_false = counts2[0.0]
+    logger.info(f"counts2: {counts2}")
+
+    try:
+        counts_true = counts2[1.0]
+    except KeyError:
+        counts_true = 0
+
+    try:
+        counts_false = counts2[0.0]
+    except KeyError:
+        counts_false = 0
+
     logger.info(
         f"Number of trades executed : {counts_true}. Number of trades not exeucted: {counts_false} (being below the threshold)"
     )
+
+
+def enforce_non_overlapping_signals(trade_signal: pd.Series, holding_period: int) -> pd.Series:
+    """
+    Zeruje sygnały, dopóki poprzednia pozycja jest jeszcze otwarta.
+    Gwarantuje maksymalnie jedną otwartą pozycję na raz.
+    """
+    signal = trade_signal.copy()
+    logger.debug(f"incoming signal : {signal}")
+
+    days_until_free = 0
+
+    for i in range(len(signal)):
+        if days_until_free > 0:
+            signal.iloc[i] = 0  # pozycja wciąż otwarta -> ignoruj nowy sygnał
+            days_until_free -= 1
+        elif signal.iloc[i] == 1:
+            days_until_free = holding_period - 1  # otwieramy pozycję, blokujemy kolejne 9 dni
+
+    logger.debug(f"outoging signal : {signal}")
+    return signal

@@ -247,8 +247,8 @@ def pre_pipeline():
     logger.info("\n--- LLM analysis ---")
     response_from_llm = ask_llm(USER_CONTEXT, users_input)
     logger.info(response_from_llm)
-    converted_resposne = define_users_input(role="assistant", content=response_from_llm)
-    draft_chat_history.list_expansion(converted_resposne)
+    converted_response = define_users_input(role="assistant", content=response_from_llm)
+    draft_chat_history.list_expansion(converted_response)
 
     logger.info("\n--- summary of conversation in  LLM ---")
     draft_chat_history.expand_chat_with_id(id_assigned)

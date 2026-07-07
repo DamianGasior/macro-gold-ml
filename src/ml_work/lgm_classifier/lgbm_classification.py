@@ -13,7 +13,12 @@ import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
 from src.ml_work.reports.report_summary import Report_Summary
-
+import mlflow
+from src.ml_work.lgm_classifier.ml_flow import (
+    ml_flow__log_param,
+    ml_flow__log_artifact,
+    ml_flow__log_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -227,14 +232,27 @@ class LGBMClassifier_model:
             reg_alpha=1,
             force_col_wise=True,
             n_jobs=-1,
+            random_state=7,
         )
+
+        # mlflow.start_run()
+        # mlflow.log_param("Model name", str(type(model).__name__))
+        # mlflow.log_param("Model details", str(model.get_params()))
+        # mlflow.log_param("PROBABILITY_THRESHOLD details", {PROBABILITY_THRESHOLD})
+        # mlflow.log_param("train_start:", str(self.X_train.index.min()))
+        # mlflow.log_param("train_end:", str(self.X_train.index.max()))
+        # mlflow.log_param("test_start:", str(self.X_test.index.min()))
+        # mlflow.log_param("test_end:", str(self.X_test.index.max()))
+
+        ml_flow__log_param(model, PROBABILITY_THRESHOLD, self._X_train, self._X_test)
+
         logger.info(f"Model name: {type(model).__name__}")
         logger.debug(f"Model details: {model.get_params()}")
 
-        mask = ~np.isfinite(self._X_train.to_numpy())
+        mask = ~np.isfinite(self.X_train.to_numpy())
 
         logger.warning(f"INF/NAN count: {mask.sum()}")
-        logger.warning(f"Columns with INF/NAN: {self._X_train.columns[mask.any(axis=0)].tolist()}")
+        logger.warning(f"Columns with INF/NAN: {self.X_train.columns[mask.any(axis=0)].tolist()}")
 
         self._lgbm_model = model.fit(self._X_train, self._y_train)
         # proba = self._lgbm_model.predict_proba(self._X_test)[:,1]
@@ -272,6 +290,7 @@ class LGBMClassifier_model:
         logger.info(f"Model zapisany: {output_dir}/lgbm_classifier.pkl")
         logger.info(f"Kolumny zapisane: {output_dir}/feature_columns.pkl")
         logger.info(f"Kolumny zapisane to : {self._X_train.columns.tolist()}")
+        ml_flow__log_artifact(output_dir, "lgbm_classifier.pkl")
 
     def shap_evaluation(self, count=1):
         explainer = shap.TreeExplainer(
@@ -303,27 +322,20 @@ class LGBMClassifier_model:
     def backtest_strategy(self):
         """
         Generate trading signals and backtest strategy performance.
-
         Creates trade signals based on probability edge method, calculates strategy returns,
         equity curve, and performance metrics including Sharpe ratio (both total and trade-based).
-
         Returns:
             pd.DataFrame: Combined dataframe with strategy metrics and equity curve
         """
 
         self._combined_dataframe.loc[self._X_test.index, "prob_long"] = self._proba_test
+
         logger.debug(
-            f"self._proba_test mint is :\n{self._proba_test.min()} and max is {self._proba_test.max()}"
+            f"self._proba_test min is :\n{self._proba_test.min()} and max is {self._proba_test.max()}"
         )
 
         # logger.debug(f"Last 20 probability edges:\n{self._combined_dataframe['prob_long'].tail(20)}")
         self._combined_dataframe["trade_signal"] = np.nan
-
-        # bvelow regime filter does not improve the test train split data
-        # gold_price=self._combined_dataframe['GOLD']
-        # roll_200_gold=gold_price.dropna().rolling(200).mean()
-        # regime_filter=gold_price.loc[self._X_test.index] > roll_200_gold.loc[self._X_test.index]  # Series True/False dla każdego wiersza
-        # print(regime_filter)
 
         # taking the top 30 % of best singals
         self._combined_dataframe.loc[self._X_test.index, "trade_signal"] = (
@@ -333,16 +345,26 @@ class LGBMClassifier_model:
             .astype(int)
         )
 
-        # logger.info(f"Last 20 trade signals:\n{self._combined_dataframe['trade_signal'].tail(20)}")
+        # nowa linia — eliminacja nakładających się pozycji
+        self._combined_dataframe.loc[self._X_test.index, "trade_signal"] = (
+            financial_metrics.enforce_non_overlapping_signals(
+                self._combined_dataframe.loc[self._X_test.index, "trade_signal"],
+                holding_period=10,
+            )
+        )
 
         self._combined_dataframe["strategy_return"] = self._combined_dataframe[
             "trade_signal"
         ].fillna(0) * self._combined_dataframe["GOLD"].pct_change(10).shift(-10)
 
-        bt = self._combined_dataframe.dropna(subset=["strategy_return"]).copy()
+        bt = (
+            self._combined_dataframe.loc[self._X_test.index]
+            .dropna(subset=["strategy_return"])
+            .copy()
+        )
         self._bt = bt
-        # logger.debug(f"Backtest dataframe:\n{self._bt}")
-
+        overlap_days = (self._bt["trade_signal"].rolling(10).sum() > 1).sum()
+        logger.debug(f"Dni z nakładającymi się sygnałami: {overlap_days} z {len(self._bt)}")
         self._bt["equity_curve"] = (1 + self._bt["strategy_return"]).cumprod()
         # logger.debug(f"Equity curve:\n{self._bt['equity_curve']}")
 
@@ -351,7 +373,6 @@ class LGBMClassifier_model:
         first_date, latest_date = financial_metrics.find_start_end_date(self._X_test)
         self.add_to_dict("first_date", first_date)
         self.add_to_dict("latest_date", latest_date)
-        print(first_date, latest_date)
 
         sharpe = financial_metrics.sharpe_calc(returns, 252)
         logger.info(f"Sharpe ratio (annualized): {sharpe}")
@@ -391,9 +412,11 @@ class LGBMClassifier_model:
 
         drawdown = financial_metrics.drawdown_from_peak(self._bt, "equity_curve")
         self.add_to_dict("drawdown_from_peak", drawdown)
+        ml_flow__log_metrics("strategy/drawdown_from_peak_pct", drawdown * 100)
 
         vol_annual = financial_metrics.return_std(self._bt, "strategy_return")
         self.add_to_dict("vol_annual", vol_annual)
+        ml_flow__log_metrics("strategy/vol_annual_pct", vol_annual * 100)
 
         dxy_trend = financial_metrics.trend_calc(self._bt, "DXY", self._X_test)
         self.add_to_dict("dxy_trend", dxy_trend)
@@ -418,13 +441,22 @@ class LGBMClassifier_model:
         logger.info(f"PnL Long: {pnl_long}")
         # logger.info(f"PnL Short: {pnl_short}")
         # logger.info(f"Hit Rate: {hit_rate}")
-        logger.info(f"Average Trade Return: {average_trade_return}")
+        logger.info(f"average_trade_return: {average_trade_return}")
+        ml_flow__log_metrics("strategy/average_trade_return_pct", average_trade_return * 100)
+        ml_flow__log_metrics("strategy/pnl_long_pct", pnl_long * 100)
 
-        logger.info(f"Information below are for  BUY and HOLD approach")
-        financial_metrics.buy_and_hold_strateg(self._bt, "GOLD")
-        financial_metrics.calculate_cagr(self._bt, "GOLD")
-        financial_metrics.drawdown_from_peak(self._bt, "GOLD")
-        financial_metrics.return_std(self._bt, "GOLD_return")
+        logger.debug(f"Information below are for  BUY and HOLD approach")
+        bh_return = financial_metrics.buy_and_hold_strateg(self._bt, "GOLD")
+        ml_flow__log_metrics("benchmark/buy_and_hold_return_pct", bh_return * 100)
+
+        bh_cagr = financial_metrics.calculate_cagr(self._bt, "GOLD")
+        ml_flow__log_metrics("benchmark/buy_and_hold_cagr_pct", bh_cagr * 100)
+
+        bh_drawdown = financial_metrics.drawdown_from_peak(self._bt, "GOLD")
+        ml_flow__log_metrics("benchmark/buy_and_hold_drawdown_pct", bh_drawdown * 100)
+
+        bh_volatility = financial_metrics.return_std(self._bt, "GOLD_return")
+        ml_flow__log_metrics("benchmark/buy_and_hold_vol_annual_pct", bh_volatility * 100)
 
     def equity_curve_result(self):
         """
@@ -511,20 +543,25 @@ class LGBMClassifier_model:
         classification report, ROC AUC score, and log loss.
         """
         accuracy = accuracy_score(self._y_test, self._y_pred)
-        print(f"accuracy_score is : {accuracy}")
+        logger.debug(f"accuracy_score is : {accuracy}")
         train_acc = self._lgbm_model.score(
             self._X_train, self._y_train
         )  # accuracy on training data
         test_acc = self._lgbm_model.score(self._X_test, self._y_test)
-        logger.info(f"Train accuracy: {train_acc}")
-        logger.info(f"Test accuracy: {test_acc}")
-        logger.info(f"Confusion matrix:\n{confusion_matrix(self._y_test, self._y_pred)}")
-        logger.info(f"Classification report:\n{classification_report(self._y_test, self._y_pred)}")
+        logger.debug(f"train_accuracy: {train_acc}")
+        logger.debug(f"test_accuracy: {test_acc}")
+        logger.debug(f"Confusion matrix:\n{confusion_matrix(self._y_test, self._y_pred)}")
+        logger.debug(f"Classification report:\n{classification_report(self._y_test, self._y_pred)}")
         # auc = roc_auc_score(self._y_test, self._proba)
-        auc = roc_auc_score(self._y_test, self._proba_test[:, 1])
-        logger.info(f"ROC AUC: {auc}")
-        loss = log_loss(self._y_test, self._proba_test[:, 1])
-        logger.info(f"Log Loss: {loss}")
+        auc = roc_auc_score(self._y_test, self._proba_test)
+        logger.debug(f"roc_auc: {auc}")
+        loss = log_loss(self._y_test, self._proba_test)
+        logger.debug(f"log_Loss: {loss}")
+        ml_flow__log_metrics("classification/accuracy_score", accuracy)
+        ml_flow__log_metrics("classification/train_accuracy", train_acc)
+        ml_flow__log_metrics("classification/test_accuracy", test_acc)
+        ml_flow__log_metrics("classification/roc_auc", auc)
+        ml_flow__log_metrics("classification/log_Loss", loss)
 
     def pipeline_with_time_series_split(self):
         """
@@ -538,29 +575,34 @@ class LGBMClassifier_model:
         logger.debug("Start of the TimeSeriesSplit split : 5  ")
         report = Report_Summary()
         for train_idx, test_idx in tscv.split(self._x):
-            # print(f'count print {count}')
-            count = count + 1
-            logger.debug(f"TimeSeriesSplit split : {count}")
-            # print(f'count print {count}')
+            with mlflow.start_run():
+                # print(f'count print {count}')
+                count = count + 1
+                ml_flow__log_metrics("fold", count)
+                logger.debug(f"TimeSeriesSplit_split : {count}")
+                # print(f'count print {count}')
 
-            self._X_train, self._X_test = (
-                self._x.iloc[train_idx],
-                self._x.iloc[test_idx],
-            )
+                self._X_train, self._X_test = (
+                    self._x.iloc[train_idx],
+                    self._x.iloc[test_idx],
+                )
 
-            self._y_train, self._y_test = (
-                self._y.iloc[train_idx],
-                self._y.iloc[test_idx],
-            )
+                self._y_train, self._y_test = (
+                    self._y.iloc[train_idx],
+                    self._y.iloc[test_idx],
+                )
 
-            self.run_lgbm_classifier()
-            self.backtest_strategy()
-            self.evaluate_segments()
-            self.shap_evaluation(count)
-            # self.different_params_setup()
-            self.evaluating_backtest_strategy()
-            report.report_pipeline(self.pre_data)
-            logger.debug(f"storing report : {report.show_report()}")
+                self.run_lgbm_classifier()
+                self.backtest_strategy()
+                self.evaluate_segments()
+                self.shap_evaluation(count)
+                self.different_params_setup()
+                self.evaluating_backtest_strategy()
+                report.report_pipeline(self.pre_data)
+                logger.debug(f"storing report : {report.show_report()}")
+                ml_flow__log_metrics("strategy/sharpe", self.pre_data["sharpe"])
+                ml_flow__log_metrics("strategy/sharpe_trade", self.pre_data["sharpe_trade"])
+                ml_flow__log_metrics("strategy/cagr_pct", self.pre_data["cagr"] * 100)
 
         logger.debug("End of the TimeSeriesSplit")
 
@@ -575,22 +617,28 @@ class LGBMClassifier_model:
             feat_dataframe (pd.DataFrame): Feature dataframe for modeling
         """
         # raw_dataframe = utils.clean_features(raw_dataframe)
-        feat_dataframe = utils.clean_features(feat_dataframe)
-        self.combine_dataframes(feat_dataframe)
-        self.set_train_test_split()
-        self.run_lgbm_classifier()
-        self.backtest_strategy()
-        # self.evaluate_segments()
-        self.feature_importance()
-        self.equity_curve_result()
-        self.shap_evaluation()
-        # self.different_params_setup()
-        self.evaluating_backtest_strategy()
+        with mlflow.start_run():
+            feat_dataframe = utils.clean_features(feat_dataframe)
+            self.combine_dataframes(feat_dataframe)
+            self.set_train_test_split()
+            self.run_lgbm_classifier()
+            self.save_model()
+            self.backtest_strategy()
+            # self.evaluate_segments()
+            self.feature_importance()
+            self.equity_curve_result()
+            self.shap_evaluation()
+            self.different_params_setup()
+            self.evaluating_backtest_strategy()
 
-        report = Report_Summary()
-        report.report_pipeline(self.pre_data)
-        print(report.show_report())
-        # print(self._bt['DXY'].tail(15))
+            report = Report_Summary()
+            report.report_pipeline(self.pre_data)
+            logger.debug(f"self.pre_data : {self.pre_data}")
+            logger.debug(f"sharpe: {self.pre_data['sharpe']}")
+            logger.debug(report.show_report())
+            ml_flow__log_metrics("strategy/sharpe", self.pre_data["sharpe"])
+            ml_flow__log_metrics("strategy/sharpe_trade", self.pre_data["sharpe_trade"])
+            ml_flow__log_metrics("strategy/cagr_pct", self.pre_data["cagr"] * 100)
 
     def classification_time_split_model_pipeline(self, feat_dataframe):
         """
@@ -603,18 +651,7 @@ class LGBMClassifier_model:
         self.combine_dataframes(feat_dataframe)
         self.pipeline_with_time_series_split()
 
-        # self.feature_importnace()
-
-        # print(type(threshold_top))
-        # print(f'threshold_top : {threshold_top}')
-        # print(f'threshold_bottom : {threshold_bottom}')
-        # # print(self._y_pred)
-        # print(f'_y_pred : {self._y_pred[0]}')
-
     def add_to_dict(self, key, value):
-        print(key, value)
-        print(self.pre_data)
-        print(type(self.pre_data))
         self.pre_data[key] = value
         return self.pre_data
 

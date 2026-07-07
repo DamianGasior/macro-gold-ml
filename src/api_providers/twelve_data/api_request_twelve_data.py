@@ -96,12 +96,12 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
             # resp = requests.get(url, params=parameters)
             response = api_request_cached(
                 parameters
-            )  # object Resposne in the library requests have an featrure called .status_code, which may return :  200, 404, 500
+            )  # object response in the library requests have an featrure called .status_code, which may return :  200, 404, 500
             # print(type(resp))  # <class 'requests.models.Response'>
             log_info = response.get("from_cache")
             resp = response.get("data")
             if resp is None:
-                raise Exception("Missing key 'data' in the api resposne from twelve data")
+                raise Exception("Missing key 'data' in the api response from twelve data")
             logger.info(f"API response is recevied based on caches: {log_info}")
             # print(type(response))  # <class 'dict'>
             # if resp.status_code == 200
@@ -142,14 +142,14 @@ class Underlying_twelve_data_reuquest(BaseAPIProvider):
         # print(response)
         return response
 
-    def response_from_api(self, api_reponse):
-        logger.info(f"api resposne type is : {type(api_reponse)}")
-        logger.info(f"Resposne from api is :{api_reponse}")
+    def response_from_api(self, api_response):
+        logger.info(f"api response type is : {type(api_response)}")
+        logger.info(f"response from api is :{api_response}")
         symbol = self.symbol
-        api_reponse = self.to_dict()
-        api_reponse = api_reponse["quotes"]
+        api_response = self.to_dict()
+        api_response = api_response["quotes"]
 
-        return Data_transformation(api_reponse, symbol)
+        return Data_transformation(api_response, symbol)
 
     def to_dict(self):
         response = self.api_request()
