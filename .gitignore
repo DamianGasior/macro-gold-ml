@@ -244,3 +244,4 @@ app_logs/*
 # ignore mlflows files
 mlflow.db
 mlruns/
+ml_flow_export_results.py
