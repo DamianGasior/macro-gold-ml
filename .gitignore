@@ -245,3 +245,7 @@ app_logs/*
 mlflow.db
 mlruns/
 ml_flow_export_results.py
+
+# this was an experiment , to see if managing it in Streamlit will be possible : 
+
+streamlit_app.py
