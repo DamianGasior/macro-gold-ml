@@ -1,5 +1,36 @@
 # Checklista: AI Engineer — droga do pracy
 
+## 🎯 PLAN ZAMKNIĘCIA PROJEKTU GOLD (ustalone 2026-07-03)
+*Po analizie ogłoszenia AI Engineer — kolejność zamykania Gold przed przejściem do RegRAG. Fraud Detection pominięty celowo (mniej istotny dla ścieżki AI Engineer).*
+
+- [x] **MLflow — demo eksperymentu** ✅ (2026-07-08) — znacznie wykroczyło poza pierwotny zakres
+  - `ml_flow.py`: `ml_flow__log_param`, `ml_flow__log_metrics`, `ml_flow__log_artifact` — osobny moduł, wywoływany z `lgbm_classification.py`
+  - Param: nazwa/hiperparametry modelu, `train_start/end`, `test_start/end`, `PROBABILITY_THRESHOLD`
+  - Metryki pogrupowane prefiksem `/` (`classification/*`, `strategy/*`, `benchmark/*`) — MLflow UI grupuje je w zwijane sekcje
+  - `random_state=7` dodany do `LGBMClassifier` — bez tego wyniki nie były powtarzalne między runami (realny problem, który złapaliśmy przez porównanie dwóch identycznych uruchomień)
+  - Po drodze znalezione i naprawione dwa poważne bugi metodologiczne w backteście: zły zakres dat w `self._bt` (liczył CAGR/Sharpe na całym train+test zamiast tylko na oknie testowym) i nakładające się pozycje (10-dniowe okna handlowe zachodzące na siebie, sztucznie pompujące CAGR do 120%+) — po naprawie: Sharpe ~0.8-1.1, CAGR ~11-16%, drawdown wyraźnie niższy niż buy-and-hold
+  - `pipeline_with_time_series_split()` (walk-forward, 5 foldów) też podłączone do MLflow — jeden run per fold
+  - Eksport wyników do Markdown: `ml_flow_export_results.py` — `mlflow.search_runs()` → tabela → `mflow_metrics_results.md` (do wklejenia do README, żeby ktoś mógł zobaczyć wyniki bez odpalania `mlflow ui` lokalnie)
+  - **Quiz 2026-07-08 — 1/4 w pełni, 2 częściowe, 1 błędna:**
+    - ✅ różnica param vs metric
+    - ❌ **luka:** próba nadpisania `log_param` inną wartością w tym samym runie rzuca `MlflowException`, nie nadpisuje po cichu — to był realny bug w pętli walk-forward zanim dodaliśmy `with` per fold
+    - ⚠️ **luka:** `with mlflow.start_run()` jest bezpieczniejsze bo gwarantuje zamknięcie runu **nawet przy wyjątku** (nie tylko przy normalnym zakończeniu bloku)
+    - ⚠️ **luka:** `run_id` to nie "domyślna metryka" — to metadana runu (jak `status`, `start_time`), całkiem osobna kategoria od `metrics.`/`params.`/`tags.`
+  - **Do powtórki (sierpień 2026):** różnica param immutability + `with` + exception safety + kategorie kolumn w `search_runs()`
+- [ ] **Central banks gold purchases — jako kontekst LLM, NIE feature LGBM** (zdecydowane 2026-07-03)
+  - Plik źródłowy sprawdzony: `Changes_latest_as_of_Jul2026_IFS (2).xlsx`, zakładka `Monthly` — 162 kraje, dane 2002-01 do 2026-05, zmiana rezerw w tonach/miesiąc, dużo NaN dla świeżych miesięcy (np. tylko 34/162 krajów ma dane za 2026-05)
+  - Decyzja: dane zbyt rzadkie/dziurawe żeby bezpiecznie rozbić na dzienną częstotliwość bez ryzyka przesunięcia train/test split (confound z ostatniej lekcji o kontroli zmiennych)
+  - Zamiast tego: agregacja trendu (12m / 3y / 4y / 5y net purchases) jako **tekstowy komentarz** wstrzykiwany do promptu LLM — ten sam wzorzec co `build_market_context()` / RAG, model interpretuje jakościowo, nie ilościowo
+  - Konsekwencja: to zadanie NIE wymaga MLflow (nie ma retrainingu)
+- [ ] **Function calling / Tool use w `gold_analysis.py`** ⭐ — LLM sam wywołuje `get_lgbm_signal()` jako tool zamiast że wynik jest zawsze wklejany do promptu. Bezpośredni pomost do agentów LangGraph w RegRAG.
+- [ ] **Evals dla `gold_analysis.py`** ⭐ — 10-20 scenariuszy testowych + LLM-as-judge. Odpowiada wprost na pytanie rekrutacyjne "skąd wiesz że LLM odpowiada poprawnie" (patrz sekcja Evals niżej).
+- [ ] **Weryfikacja testów jednostkowych** — checklista niżej mówi "zero testów", ale `tests/test_financial_metrics.py` i `tests/test_feature_engineering_regression_lgbm.py` już istnieją (patrz Poziom 1 → Testy jednostkowe) — do odświeżenia stanu.
+
+*Reszta Poziomu 1 (LeetCode, algorytmy od zera, docker-compose, Azure Blob/Monitor) — fundamenty ogólne, nie blokują zamknięcia Gold, można robić równolegle.*
+*Pinecone, LangChain, LangGraph, Langfuse, RAGAS — świadomie zarezerwowane dla RegRAG, nie duplikować w Gold.*
+
+---
+
 ## Twoja przewaga strategiczna
 15 lat bankowość (PM + analityk) + budujący ML projekt na danych finansowych = idealny kandydat na AI Engineer w fintech / banku. Wiele firm płaci premium za kogoś, kto rozumie i domenę, i kod.
 
@@ -198,17 +229,18 @@ Odkryte przez DevTools → Network tab → Fetch/XHR. `fetch_gold_org_article_li
 - [ ] Behavior checks — przy sygnale LONG model nie odpowiada "brak sygnału", przy NO TRADE nie halucynuje kupna
 - [ ] Zestaw 10-20 scenariuszy testowych dla `gold_analysis.py` z mock_response (bez prawdziwego API call)
 - [ ] Metryka: % scenariuszy które przechodzą (cel: >80%)
-- [ ] LLM-as-judge — osobny skrypt odpalany raz na tydzień / przed deploy'em:
+- [ ] LLM-as-judge ⭐ KLUCZOWE NA ROZMOWACH — osobny skrypt odpalany raz na tydzień / przed deploy'em:
   - mocniejszy model (np. gpt-4o) ocenia próbkę odpowiedzi słabszego (gpt-4o-mini)
   - wejście: pytanie + odpowiedź; wyjście: PASS / FAIL + uzasadnienie
   - NIE przy każdym zapytaniu produkcyjnym — za drogo; uruchamiasz ręcznie lub przez GitHub Actions schedule
+  - *"Skąd wiesz że twój LLM odpowiada poprawnie?"* — to jest właśnie odpowiedź na to pytanie
 
 ### MLflow — experiment tracking
 *4 linijki kodu w istniejącym LGBM pipeline. Pokazuje że traktujesz ML produkcyjnie — pytają o to na każdej rozmowie.*
 
-- [ ] Zaloguj 1 trening LGBM: parametry (`threshold`, `n_estimators`) + metryki (Sharpe, CAGR) + artefakt `.pkl`
-- [ ] `mlflow ui` — porównaj 2-3 runy w przeglądarce (który parametr dał lepszy Sharpe?)
-- [ ] Rozumiesz różnicę: `mlflow.log_param()` vs `mlflow.log_metric()` vs `mlflow.log_artifact()`
+- [x] Zaloguj 1 trening LGBM: parametry (`threshold`, `n_estimators`) + metryki (Sharpe, CAGR) + artefakt `.pkl` ✅ (2026-07-08) — patrz szczegóły w sekcji "PLAN ZAMKNIĘCIA" na górze pliku
+- [x] `mlflow ui` — porównaj 2-3 runy w przeglądarce ✅ (2026-07-08) — dodatkowo eksport wielu runów do tabeli Markdown przez `mlflow.search_runs()` (`ml_flow_export_results.py`)
+- [x] Rozumiesz różnicę: `mlflow.log_param()` vs `mlflow.log_metric()` vs `mlflow.log_artifact()` ✅ (2026-07-08) — quiz 1/4 w pełni, luki w param immutability i exception-safety `with` (patrz notatka wyżej)
 
 ### LangChain / LlamaIndex
 
