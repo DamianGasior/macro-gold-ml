@@ -104,8 +104,8 @@ def dates_numbers(dataframe, column_name):
 
 def enforce_non_overlapping_signals(trade_signal: pd.Series, holding_period: int) -> pd.Series:
     """
-    Zeruje sygnały, dopóki poprzednia pozycja jest jeszcze otwarta.
-    Gwarantuje maksymalnie jedną otwartą pozycję na raz.
+    Zero's all new signals until the current position is open.
+    Thanks to that, we got the guarantee that we have only one position open.
     """
     signal = trade_signal.copy()
     logger.debug(f"incoming signal : {signal}")

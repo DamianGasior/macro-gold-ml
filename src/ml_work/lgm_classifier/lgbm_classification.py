@@ -39,7 +39,7 @@ from sklearn.metrics import (
     r2_score,
     root_mean_squared_error,
 )
-from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
+from sklearn.model_selection import TimeSeriesSplit, train_test_split
 
 current_dir = os.path.dirname(__file__)
 
@@ -53,8 +53,7 @@ RETURN_LOOKBACK = 10  # 10-day returns for target calculation
 RETURN_FORWARD = 10  # 10-day forward-looking returns for backtesting
 
 # Backtesting parameters
-PROBABILITY_THRESHOLD = 0.70  # 80th percentile for trade signal
-EDGE_QUANTILE = 0.70  # 85th percentile for edge calculation
+PROBABILITY_THRESHOLD = 0.70  # 70th percentile for trade signal
 
 # Data segment analysis
 TOP_BOTTOM_PERCENTILE = 0.3  # Top/bottom 30% segmentsDataFrame()
@@ -235,15 +234,6 @@ class LGBMClassifier_model:
             random_state=7,
         )
 
-        # mlflow.start_run()
-        # mlflow.log_param("Model name", str(type(model).__name__))
-        # mlflow.log_param("Model details", str(model.get_params()))
-        # mlflow.log_param("PROBABILITY_THRESHOLD details", {PROBABILITY_THRESHOLD})
-        # mlflow.log_param("train_start:", str(self.X_train.index.min()))
-        # mlflow.log_param("train_end:", str(self.X_train.index.max()))
-        # mlflow.log_param("test_start:", str(self.X_test.index.min()))
-        # mlflow.log_param("test_end:", str(self.X_test.index.max()))
-
         ml_flow__log_param(model, PROBABILITY_THRESHOLD, self._X_train, self._X_test)
 
         logger.info(f"Model name: {type(model).__name__}")
@@ -327,7 +317,7 @@ class LGBMClassifier_model:
         Returns:
             pd.DataFrame: Combined dataframe with strategy metrics and equity curve
         """
-
+        self._combined_dataframe["prob_long"] = np.nan
         self._combined_dataframe.loc[self._X_test.index, "prob_long"] = self._proba_test
 
         logger.debug(
@@ -378,7 +368,9 @@ class LGBMClassifier_model:
         logger.info(f"Sharpe ratio (annualized): {sharpe}")
         self.add_to_dict("sharpe", sharpe)
 
-        years = self._bt.index.max().year - self._bt.index.min().year
+        years = max(
+            self._bt.index.max().year - self._bt.index.min().year, 1
+        )  # in case the fold from timeSeriesSplit will be in the same year, yeras will be then 0
         retunrs_trades = returns[returns != 0].dropna()
         n_trades = len(retunrs_trades) / years
         logger.info(f"Number of returns higher than 0: {retunrs_trades.count()}")
@@ -428,10 +420,6 @@ class LGBMClassifier_model:
         self.add_to_dict("spy_trend", spy_trend)
 
         pnl_long = self._bt[self._bt["trade_signal"] == 1]["strategy_return"].mean()
-
-        # pnl_short = self._bt[self._combined_dataframe["position"] == -1][
-        #     "strategy_return"
-        # ].mean()
 
         financial_metrics.dates_numbers(self._bt, "trade_signal")
 
@@ -578,7 +566,7 @@ class LGBMClassifier_model:
             with mlflow.start_run():
                 # print(f'count print {count}')
                 count = count + 1
-                ml_flow__log_metrics("fold", count)
+                mlflow.log_param("fold", count)
                 logger.debug(f"TimeSeriesSplit_split : {count}")
                 # print(f'count print {count}')
 
@@ -654,29 +642,3 @@ class LGBMClassifier_model:
     def add_to_dict(self, key, value):
         self.pre_data[key] = value
         return self.pre_data
-
-    @staticmethod
-    def edge_method(proba):
-        """
-        Calculate quantile-based trading edge threshold.
-
-        Computes 85th percentile of probabilities to use as threshold for trade signals.
-
-        Args:
-            proba (np.ndarray): Array of probabilities from model
-
-        Returns:
-            float: 85th percentile threshold value
-        """
-        # prob_short=proba[:,0]
-        prob_long = proba
-
-        # edge=prob_long-prob_short
-
-        # short_quantile= np.quantile(edge,0.15)
-        long_quantile = np.quantile(prob_long, EDGE_QUANTILE)
-        logger.debug(f"long_quantile: {long_quantile}")
-        logger.debug(
-            f"probability long min is :\n{prob_long.min()} and max is {prob_long.max()} and quantile of 0,85 is "
-        )
-        return long_quantile
