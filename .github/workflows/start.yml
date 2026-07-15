@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps: 
- # Krok 1: zaloguj się do Azure używając service principal
+ # Step 1 : Login to azure using the below account details
       - name: Login to Azure
         uses: azure/login@v1
         with:
