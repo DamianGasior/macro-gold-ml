@@ -29,10 +29,10 @@ COPY . .
 # Warstwa 6: port na którym nasłuchuje uvicorn wewnątrz kontenera
 # To tylko dokumentacja — informuje Dockera że aplikacja używa portu 8000
 # Nie otwiera portu automatycznie — to robi "docker run -p"
-EXPOSE 8000
+EXPOSE 80
 
 # Warstwa 7: komenda która odpala się gdy kontener startuje
 # Bez --reload bo to środowisko produkcyjne, nie developerskie
 # --host 0.0.0.0 = nasłuchuj na wszystkich interfejsach sieciowych kontenera
 #                  bez tego kontener nie byłby dostępny z zewnątrz
-CMD ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "80"]
