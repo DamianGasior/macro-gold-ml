@@ -16,27 +16,51 @@ from src.pipeline.pipeline import DataPipeline
 from src.pipeline.utils import SYMBOL_MAPPINGS, TWELVE_DATA, FRED
 from src.llm.gold_analysis import pre_pipeline, pipeline
 from src.llm.chat import Chat_history
+from contextlib import asynccontextmanager
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def app_startup(app: FastAPI):
+    # ==== Startup : code before yield ====
+    # starts only once, when server is up
+    logger.info("Startup: pre-warming cache...")
+    get_latest_features()
+    logger.info("Startup: cache ready")
+
+    yield
+    # ==== Shutdown : technically we are not closing the connection, will be closed with the Azure Container  ====
 
 
 app = FastAPI(
     title="Gold Prediction API",
     description="API do predykcji kierunku złota za pomocą modelu LGBM",
     version="0.1.0",
+    lifespan=app_startup,
 )
 
-# serwuje pliki z folderu static/ pod ścieżką /static
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Serves static files (the frontend) from the folder on disk under a URL prefix.
+# app.mount()  - plugs a whole URL subsection into the app
+#   "/static"                                 -> URL address, e.g. my_domain.com/static/...
+#   StaticFiles(directory="frontend_static")  -> folder ON DISK where the files live
+#   name="static"                             -> internal label FastAPI uses to generate links
+# NOTE: "/static" (URL) and "frontend_static" (folder) are two DIFFERENT things.
+app.mount("/static", StaticFiles(directory="frontend_static"), name="static")
 
 
 @app.get("/")
 def root():
-    return FileResponse("static/index.html")
+    """Serve the frontend homepage.
+
+    When a user hits the root URL "/", this endpoint returns index.html directly,
+    so they don't have to type /static/index.html manually - the server does it for them.
+    """
+    return FileResponse("frontend_static/index.html")
 
 
-# Model i feature_columns ładowane raz przy starcie serwera
+# Model i feature_columns are loaded during server start process
 try:
     model = joblib.load("models/lgbm_classifier.pkl")
     feature_columns = joblib.load("models/feature_columns.pkl")
@@ -78,7 +102,7 @@ class ChatResponse(BaseModel):
         return chat_hist
 
 
-# Cache w pamięci — dane rynkowe zmieniają się raz dziennie, nie ma sensu odpytywać API przy każdym requeście
+# Cache in memory - market data are chaning once a day, there is no sense to request api multiple times a day
 _cache: dict = {"data": None, "expires_at": datetime.min}
 
 _chat_sessions: dict = {}
@@ -88,11 +112,11 @@ def get_latest_features() -> pd.DataFrame:
     if _cache["data"] is not None and datetime.now() < _cache["expires_at"]:
         return _cache["data"]
 
-    # Twelve Data: ceny rynkowe (ETF, surowce, krypto)
+    # Twelve Data: market data (ETF, comm, crypto)
     twelve_symbols = deque(TWELVE_DATA)
     twelve_data = DataPipeline().run_requests(twelve_symbols, "twelve", SYMBOL_MAPPINGS, 200)
 
-    # FRED: waluty, VIX, wskaźniki makro
+    # FRED: ccy, VIX, macro datat
     fred_symbols = deque(FRED)
     fred_data = DataPipeline().run_requests(fred_symbols, "fred", SYMBOL_MAPPINGS, 500)
 
@@ -104,7 +128,7 @@ def get_latest_features() -> pd.DataFrame:
     fe = FeatureRegressionEngineeringLGBMR()
     fe.feature_enginerring_pipeline(df_final)
 
-    # Bierzemy ostatni kompletny wiersz (najnowszy dzień bez NaN)
+    # we take the last row with data ( the latest without NaN)
     df_features = fe.df.dropna()
     result = df_features[feature_columns].iloc[[-1]]
 
@@ -113,16 +137,9 @@ def get_latest_features() -> pd.DataFrame:
     return result
 
 
-# uruchomienie lokalne:
+# to start locally
 # source venv/bin/activate && uvicorn src.api.app:app --reload --port 8000
-# dokumentacja: http://localhost:8000/docs
-
-
-@app.on_event("startup")
-def startup_event():
-    logger.info("Startup: pre-warming cache...")
-    get_latest_features()
-    logger.info("Startup: cache ready")
+# docs: http://localhost:8000/docs
 
 
 @app.get("/health")
@@ -228,10 +245,3 @@ def chat(request: ChatRequest):
 
     else:
         return "No solution yet"
-
-
-# przypisz uuid4() w pre-pipeliine, niech metoda zwroci uuid4 rowniez
-# dodaj cala histtorie i liste do dict ktora stworzysz  w schemacie uuid- : self._conv_in_list z chat history, wykorzystaj ten dict  # self._saved_chats = {}
-# jesli odpalisz jeszcze raz zapytanie, to user id rowniez bedzie przypisany jako atrybut klasy chat Request
-# jesli atrybut bedzie none / nie bedzie etgo w dict w Chat history, to strzel od poczatku pipeline, ale jesli bedzie
-# to pobierz historie, wrzuc context i daj wtedy nowe pytanie do llm modelu
