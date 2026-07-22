@@ -2,7 +2,7 @@ import logging
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
-from src.llm.rag.scraper import scrape_site
+from src.llm.rag.scraper import scrape_site, URLS
 
 load_dotenv()
 
@@ -108,6 +108,17 @@ def index_site(url: str, max_articles: int) -> None:
     # Krok 2 + 3: embeddingi → ChromaDB (wszystko w save_to_chroma)
     save_to_chroma(chunks, url_ending)
     logger.info("Indeksowanie zakończone ✅")
+
+
+def index_side_chunks(chunks):
+    logger.info(f"Pobrano {len(chunks)} chunków, zaczynam indeksowanie...")
+    for url in URLS:
+        url_ending = url.rsplit("/", 1)[-1]
+        logger.info(f"url_ending is : {url_ending}")
+        logger.info(f"type url_ending is : {type(url_ending)}")
+        # Krok 2 + 3: embeddingi → ChromaDB (wszystko w save_to_chroma)
+        save_to_chroma(chunks, url_ending)
+        logger.info("Indeksowanie zakończone ✅")
 
 
 if __name__ == "__main__":

@@ -17,9 +17,17 @@ from src.pipeline.utils import SYMBOL_MAPPINGS, TWELVE_DATA, FRED
 from src.llm.gold_analysis import pre_pipeline, pipeline
 from src.llm.chat import Chat_history
 from contextlib import asynccontextmanager
+from src.llm.rag.scraper import scraper_start
+from src.llm.rag.indexer import index_side_chunks
+import asyncio
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+
+# to start locally
+# source venv/bin/activate && uvicorn src.api.app:app --reload --port 8000
+# docs: http://localhost:8000/docs
 
 
 @asynccontextmanager
@@ -27,9 +35,11 @@ async def app_startup(app: FastAPI):
     # ==== Startup : code before yield ====
     # starts only once, when server is up
     logger.info("Startup: pre-warming cache...")
+    asyncio.create_task(rag_startup())
     get_latest_features()
     logger.info("Startup: cache ready")
-
+    app.state.rag_status = "building"
+    logger.info(f"app.state.rag_status : {app.state.rag_status}")
     yield
     # ==== Shutdown : technically we are not closing the connection, will be closed with the Azure Container  ====
 
@@ -65,7 +75,7 @@ try:
     model = joblib.load("models/lgbm_classifier.pkl")
     feature_columns = joblib.load("models/feature_columns.pkl")
 except FileNotFoundError:
-    raise RuntimeError("Nie znaleziono plików modelu. Uruchom najpierw pipeline treningowy.")
+    raise RuntimeError("There are no model files. Start first the training plan.")
 
 # Below Was used in the POST endpoint, leaving it here, might be reused in the future
 # together with the method @app.post("/predict", response_model=PredictResponse)
@@ -137,14 +147,26 @@ def get_latest_features() -> pd.DataFrame:
     return result
 
 
-# to start locally
-# source venv/bin/activate && uvicorn src.api.app:app --reload --port 8000
-# docs: http://localhost:8000/docs
+async def rag_startup():
+    try:
+        await asyncio.to_thread(rag_pipeline)
+        app.state.rag_status = "completed"
+        logger.info(f"app.state.rag_status: {app.state.rag_status}")
+
+    except Exception as e:
+        app.state.rag_status = "failed"
+        logger.info(f"app.state.rag_status: {app.state.rag_status}")
+        logger.warning(f"RAG process failed with error : {e}")
+
+
+def rag_pipeline():
+    chunks = scraper_start()
+    index_side_chunks(chunks)
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "message": "API działa poprawnie"}
+    return {"status": "ok", "message": "API works correctly"}
 
 
 # Below is the implemention for POST, cam ne resued in the future, if required
@@ -191,6 +213,7 @@ def chat(request: ChatRequest):
 
     # wykorzystac _cache:
     if request.uuid is None:
+
         id, chat_history = pre_pipeline()
         # logger.debug(f"request.id:{id}")
         # logger.debug(f"request.id:{type(id)}")
@@ -198,13 +221,16 @@ def chat(request: ChatRequest):
         request.uuid = str(id)
         # logger.debug(f"request.uuid:{request.uuid}")
 
-        logger.debug(f"chat_history type:{type(chat_history)}")
+        # logger.debug(f"chat_history type:{type(chat_history)}")
         logger.debug(f"chat_history :{chat_history}")
 
         response_with_context, answer_from_model = pipeline(users_query, chat_history, id)
         logger.debug(f"answer_from_model:{answer_from_model}")
         logger.debug(f"response_with_context:{response_with_context}")
         logger.debug(f"response_with_context type:{type(response_with_context)}")
+        if app.state.rag_status != "completed":
+            answer_from_model += "\n Note: analytical articles are not available right now — this answer is based on market data only."
+            logger.debug(f"RAG process  status:{app.state.rag_status}")
 
         full_chat_history = []
 

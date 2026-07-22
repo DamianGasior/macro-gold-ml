@@ -38,6 +38,16 @@ GOLD_ORG_DEFAULT_TOPICS = [
     "Central banks",
 ]
 
+
+URLS = [
+    "https://simplevisorinsights.com/daily-update",
+    "https://www.home.saxo/insights/news-and-research/macro",
+    "https://www.home.saxo/insights/news-and-research/commodities",
+    "https://www.home.saxo/insights/news-and-research/bonds",
+    # GOLD_ORG_RESEARCH_URL,
+    "https://www.gold.org/goldhub/research/library",
+]
+
 # Dostępne kolekcje: Gold Market Commentary, Gold ETF Flows, Outlook,
 # Weekly Markets Monitor, Gold Demand Trends, Case for Gold, Blogs, Gold Market Primers, Central Banks Survey.
 # Domyślnie pusty — filtrujemy tylko po topics, nie ograniczamy kolekcji.
@@ -153,7 +163,7 @@ def fetch_saxo_article_links(category: str) -> list[str]:
 
     root = ET.fromstring(response.content)
     logger.debug(f"root is: {root}")
-    # logger.debug(f"response.content is: {response.content}")
+    logger.debug(f"response.content is: {response.content}")
 
     ns = {"sm": "https://www.sitemaps.org/schemas/sitemap/0.9"}
     category_path = f"/content/articles/{category}/"
@@ -273,6 +283,7 @@ def split_into_chunks(text: str, source_url: str) -> list[dict]:
     return chunks
 
 
+# def scrape_site(index_url: str, max_articles: int = 5) -> list[dict]:
 def scrape_site(index_url: str, max_articles: int = 5) -> list[dict]:
     """Główna funkcja: wchodzi na stronę, zbiera artykuły, kroi na chunki."""
     all_chunks = []
@@ -288,6 +299,26 @@ def scrape_site(index_url: str, max_articles: int = 5) -> list[dict]:
 
     logger.debug(f"Łącznie chunków ze strony {index_url}: {len(all_chunks)}")
     return all_chunks
+
+
+def scraper_start(list_of_urls=URLS):
+    """
+    functions are fired:
+    - scrape_site(index_url: str, max_articles: int = 5) -> list[dict]:
+    - fetch_article_links()
+    - fetch_article_text(url)
+    - chunks are returned
+    """
+    for url in list_of_urls:
+        logger.debug(f"\n{'=' * 60}")
+        logger.debug(f"Testuję: {url}")
+        chunks = scrape_site(url, max_articles=5)
+        if chunks:
+            logger.debug("Pierwszy chunk (pierwsze 300 znaków):")
+            logger.debug(chunks[0]["text"][:300])
+        else:
+            logger.debug("BRAK TREŚCI")
+    return chunks
 
 
 if __name__ == "__main__":
@@ -312,3 +343,7 @@ if __name__ == "__main__":
             logger.debug(chunks[0]["text"][:300])
         else:
             logger.debug("BRAK TREŚCI")
+
+
+# stowrzy;bym tu pipeline kotry sie odpala i na koniec dotarcza rezultaty , idzeki temu wrzucam je
+# do i nnego piipleine innego pliku. tak e korzytam z kodu ktory tu mam , nie beda go powiedal.
