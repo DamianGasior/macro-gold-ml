@@ -2,7 +2,7 @@ name: Start Azure Container
 
 on:
     schedule:
-    - cron: '0 6 * * 1-5' 
+    # - cron: '0 6 * * 1-5' 
 
 jobs:
   start-container:
