@@ -249,3 +249,6 @@ ml_flow_export_results.py
 # this was an experiment , to see if managing it in Streamlit will be possible : 
 
 streamlit_app.py
+
+#ignore 
+/praktyka_synthetic_data
