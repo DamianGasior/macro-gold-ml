@@ -93,7 +93,9 @@
     <h1>Gold Analysis Chat</h1>
 
     <div id="chat-box">
-        <div class="message-ai">
+        <!-- Tekst startowy. Jesli /predict/gold odpowie, JS podmieni go na dzisiejszy sygnal.
+             Jesli endpoint padnie - zostaje ten tekst, wiec dziala jako fallback. -->
+        <div class="message-ai" id="greeting">
             Hello! I'm your gold analytics assistant. Ask me a question about gold, LGBM signal and general market situation.
         </div>
     </div>
@@ -181,6 +183,41 @@
             chatBox.scrollTop = chatBox.scrollHeight;
             return div;
         }
+
+        // Pobiera dzisiejszy sygnal modelu i pokazuje go zamiast statycznego powitania.
+        // Uderza w /predict/gold - to GET, wiec bez body (inaczej niz POST /post/chat).
+        async function loadRecommendation() {
+            const greetingEl = document.getElementById('greeting');
+
+            try {
+                const response = await fetch('/predict/gold');
+
+                if (!response.ok) {
+                    throw new Error(`Błąd serwera: ${response.status}`);
+                }
+
+                // backend zwraca: {prediction: "long", probability: 0.7412}
+                const data = await response.json();
+
+                // "long" -> "LONG", "no_trade" -> "NO TRADE"
+                const signal = data.prediction.toUpperCase().replace('_', ' ');
+                // 0.7412 -> "74.1"
+                const percent = (data.probability * 100).toFixed(1);
+
+                greetingEl.textContent =
+                    `Today's LGBM signal for gold: ${signal} (long probability ${percent}%). ` +
+                    `Ask me about the macro fundamentals behind it, or about the model itself.`;
+
+            } catch (error) {
+                // Swiadomie nie ruszamy powitania - user widzi tekst z HTML zamiast bledu
+                console.error('Nie udało się pobrać rekomendacji:', error);
+            }
+        }
+
+        // DOMContentLoaded = przegladarka skonczyla budowac strone.
+        // Ten listener odpala sie raz, automatycznie - w odroznieniu od 'keydown' nizej,
+        // ktory czeka na akcje uzytkownika.
+        document.addEventListener('DOMContentLoaded', loadRecommendation);
 
         // wyślij pytanie klawiszem Enter (Shift+Enter = nowa linia)
         document.getElementById('question').addEventListener('keydown', function(e) {
