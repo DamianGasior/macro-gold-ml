@@ -89,11 +89,15 @@ uvicorn src.api.app:app --reload --port 8000
 
 The model performs well in trending regimes and poorly in choppy/reversing ones — a known limitation, tracked as a possible regime-overfitting issue rather than a bug.
 
+##  Mlflow metrics summary
+| run_id                           | status   | start_time                       | end_time                         | tags.mlflow.source.type   | tags.mlflow.runName   |   metrics.classification/accuracy_score |   metrics.classification/train_accuracy |   metrics.classification/test_accuracy |   metrics.classification/log_Loss |   metrics.classification/roc_auc |   metrics.strategy/average_trade_return_pct |   metrics.strategy/pnl_long_pct |   metrics.strategy/sharpe |   metrics.strategy/sharpe_trade |   metrics.strategy/vol_annual_pct |   metrics.strategy/cagr_pct |   metrics.strategy/drawdown_from_peak_pct |   metrics.benchmark/buy_and_hold_return_pct |   metrics.benchmark/buy_and_hold_vol_annual_pct |   metrics.benchmark/buy_and_hold_cagr_pct |   metrics.benchmark/buy_and_hold_drawdown_pct |
+|:---------------------------------|:---------|:---------------------------------|:---------------------------------|:--------------------------|:----------------------|----------------------------------------:|----------------------------------------:|---------------------------------------:|----------------------------------:|---------------------------------:|--------------------------------------------:|--------------------------------:|--------------------------:|--------------------------------:|----------------------------------:|----------------------------:|------------------------------------------:|--------------------------------------------:|------------------------------------------------:|------------------------------------------:|----------------------------------------------:|
+| 4801fbb415114db79e792bd68575373c | FINISHED | 2026-07-09 07:58:06.952000+00:00 | 2026-07-09 07:58:09.533000+00:00 | LOCAL                     | omniscient-tern-539   |                                0.577699 |                                0.840651 |                               0.674067 |                          0.652939 |                         0.543894 |                                   0.0389265 |                        0.843549 |                  0.884243 |                         1.1375  |                          11.0936  |                     14.2622 |                                  -15.7821 |                                     124.104 |                                         14.4368 |                                   16.1176 |                                      -24.9455 |
+
 ## Status / roadmap
 
 Actively being closed out before moving to the next learning project (a regulatory-document RAG system). Remaining scope, in order:
 
-- [ ] MLflow experiment logging (baseline run + one feature on/off comparison)
 - [ ] Central bank gold purchase trends as narrative LLM context (not a model feature — data is too sparse/monthly to safely resample to daily without leaking across the train/test split)
 - [ ] Function calling / tool use in `gold_analysis.py` (LLM calls the model instead of the prediction always being stuffed into the prompt)
 - [ ] Evals for `gold_analysis.py` (scenario tests + LLM-as-judge)
