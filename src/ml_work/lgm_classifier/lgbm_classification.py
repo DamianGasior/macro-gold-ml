@@ -14,11 +14,12 @@ import pandas as pd
 from lightgbm import LGBMClassifier
 from src.ml_work.reports.report_summary import Report_Summary
 import mlflow
-from src.ml_work.lgm_classifier.ml_flow import (
+from ml_flow.ml_flow import (
     ml_flow__log_param,
     ml_flow__log_artifact,
     ml_flow__log_metrics,
 )
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
