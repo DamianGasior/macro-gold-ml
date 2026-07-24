@@ -251,3 +251,9 @@ streamlit_app.py
 
 #ignore 
 /praktyka_synthetic_data
+# private learning notes - local only, not for public repo
+CLAUDE.md
+CLAUDE_2.md
+IDEAS.md
+LEARNING_CONTEXT.md
+claude_ai_engineer_checklist.md
