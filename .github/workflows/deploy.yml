@@ -47,7 +47,7 @@ jobs:
         run: |
           az container delete \
             --resource-group gold-api-rg \
-            --name gold-api-prediction-v2 \
+            --name gold-api \
             --yes
 
           az container create \
