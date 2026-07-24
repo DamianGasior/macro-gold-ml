@@ -52,13 +52,13 @@ jobs:
 
           az container create \
             --resource-group gold-api-rg \
-            --name gold-api-prediction-v2 \
+            --name gold-api \
             --image damgas712/gold-api:latest \
             --registry-login-server index.docker.io \
             --registry-username ${{ secrets.DOCKERHUB_USERNAME }} \
             --registry-password ${{ secrets.DOCKERHUB_PAT }} \
             --ports 80 \
-            --dns-name-label gold-api-prediction-v2 \
+            --dns-name-label gold-api \
             --location westeurope \
             --os-type Linux \
             --cpu 1 \
@@ -74,4 +74,4 @@ jobs:
         run: |
           az container stop \
             --resource-group gold-api-rg \
-            --name gold-api-prediction-v2
+            --name gold-api
