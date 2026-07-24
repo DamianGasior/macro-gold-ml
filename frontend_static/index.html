@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -87,11 +87,24 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+
+        /* model description characteristics */
+        #model-info {
+            color: #666;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Gold Analysis Chat</h1>
-
+    <p id="model-info">
+    LightGBM classifier trained on macroeconomic features (rates, USD, inflation, ETF prices),
+    validated with walk-forward backtesting. Signal shows the model's probability that a 10-day
+    long position outperforms. Not investment advice.
+    </p>
     <div id="chat-box">
         <!-- Tekst startowy. Jesli /predict/gold odpowie, JS podmieni go na dzisiejszy sygnal.
              Jesli endpoint padnie - zostaje ten tekst, wiec dziala jako fallback. -->
@@ -106,7 +119,7 @@
             rows="2"
             placeholder="Ask the question about gold market .."
         ></textarea>
-        <button id="send-btn" onclick="sendMessage()">Wyślij</button>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
     </div>
 
     <script>
@@ -143,7 +156,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Błąd serwera: ${response.status}`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -157,7 +170,7 @@
 
             } catch (error) {
                 loadingEl.remove();
-                addMessage(`Błąd: ${error.message}`, 'ai');
+                addMessage(`Error: ${error.message}`, 'ai');
             }
 
             btn.disabled = false;
@@ -193,7 +206,7 @@
                 const response = await fetch('/predict/gold');
 
                 if (!response.ok) {
-                    throw new Error(`Błąd serwera: ${response.status}`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
 
                 // backend zwraca: {prediction: "long", probability: 0.7412}
@@ -206,11 +219,11 @@
 
                 greetingEl.textContent =
                     `Today's LGBM signal for gold: ${signal} (long probability ${percent}%). ` +
-                    `Ask me about the macro fundamentals behind it, or about the model itself.`;
+                    `Ask me about the macro fundamentals behind it`;
 
             } catch (error) {
                 // Swiadomie nie ruszamy powitania - user widzi tekst z HTML zamiast bledu
-                console.error('Nie udało się pobrać rekomendacji:', error);
+                console.error('Was not able to obtain the recommendation:', error);
             }
         }
 
